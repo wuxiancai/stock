@@ -19,7 +19,12 @@ class Settings(BaseSettings):
     FRONTEND_PORT: int = 3000
     
     # 数据库配置
-    DATABASE_URL: str = "postgresql://username:password@localhost:5432/stock_trading"
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5432
+    DB_NAME: str = "stock_db"
+    DB_USER: str = "stock_user"
+    DB_PASSWORD: str = "stock_password"
+    DATABASE_URL: str = "postgresql://stock_user:stock_password@localhost:5432/stock_db"
     ASYNC_DATABASE_URL: Optional[str] = None  # 异步数据库URL
     REDIS_URL: str = "redis://localhost:6379/0"
     REDIS_MAX_CONNECTIONS: int = 20
@@ -118,6 +123,10 @@ class Settings(BaseSettings):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        
+        # 动态构建数据库URL（如果没有直接设置）
+        if self.DATABASE_URL == "postgresql://stock_user:stock_password@localhost:5432/stock_db":
+            self.DATABASE_URL = f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         
         # 确保必要的目录存在
         self._ensure_directories()
