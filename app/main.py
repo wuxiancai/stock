@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 import time
 import logging
@@ -68,9 +68,11 @@ def create_application() -> FastAPI:
     app.include_router(api_router, prefix="/api/v1")
     
     # 静态文件服务
-    static_dir = Path("static")
+    static_dir = Path(__file__).parent / "static"
     if static_dir.exists():
-        app.mount("/static", StaticFiles(directory="static"), name="static")
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    else:
+        logger.warning(f"静态文件目录不存在: {static_dir}")
     
     return app
 
@@ -100,9 +102,27 @@ async def shutdown_event():
     logger.info("🛑 应用正在关闭...")
     logger.info("✅ 应用已安全关闭")
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    """根路径"""
+    """根路径 - 返回首页"""
+    static_dir = Path(__file__).parent / "static"
+    index_file = static_dir / "index.html"
+    
+    if index_file.exists():
+        return FileResponse(str(index_file))
+    else:
+        # 如果首页文件不存在，返回JSON响应
+        return JSONResponse({
+            "message": f"欢迎使用{settings.APP_NAME}",
+            "version": settings.APP_VERSION,
+            "docs": "/docs" if settings.DEBUG else "API文档在生产环境中不可用",
+            "status": "running",
+            "note": "首页文件未找到，请检查静态文件配置"
+        })
+
+@app.get("/api")
+async def api_root():
+    """API根路径"""
     return {
         "message": f"欢迎使用{settings.APP_NAME}",
         "version": settings.APP_VERSION,
