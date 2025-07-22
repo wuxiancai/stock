@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
-from typing import Optional
+from pydantic import field_validator
+from typing import Optional, Union
 import os
 from pathlib import Path
 
@@ -53,12 +54,31 @@ class Settings(BaseSettings):
     ALERT_EMAIL: Optional[str] = None
     
     # CORS配置
-    CORS_ORIGINS: list = [
+    CORS_ORIGINS: Union[str, list] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:8080",
         "http://127.0.0.1:8080"
     ]
+    
+    @field_validator('CORS_ORIGINS')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        """解析CORS_ORIGINS，支持字符串和列表格式"""
+        if isinstance(v, str):
+            # 如果是字符串，按逗号分割
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        elif isinstance(v, list):
+            # 如果已经是列表，直接返回
+            return v
+        else:
+            # 默认值
+            return [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:8080",
+                "http://127.0.0.1:8080"
+            ]
     
     # 数据库连接池配置
     DB_POOL_SIZE: int = 20
