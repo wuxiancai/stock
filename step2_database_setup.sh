@@ -118,40 +118,273 @@ fi
 # 启动PostgreSQL服务
 log_step "启动PostgreSQL服务"
 if [[ "$OS_TYPE" == "linux" ]]; then
-    # 检查不同的服务名称
-    service_names=("postgresql" "postgresql-14" "postgresql-13" "postgresql-12")
-    service_started=false
-    
-    for service in "${service_names[@]}"; do
-        if systemctl list-unit-files | grep -q "^${service}.service"; then
-            log_info "找到PostgreSQL服务: $service"
-            
-            if ! systemctl is-active --quiet "$service"; then
-                log_info "启动 $service..."
-                sudo systemctl enable "$service"
-                sudo systemctl start "$service"
-            fi
-            
-            if systemctl is-active --quiet "$service"; then
-                log_success "PostgreSQL服务已启动: $service"
-                service_started=true
-                break
+    # Ubuntu/Debian系统的PostgreSQL服务启动逻辑
+    if [[ "$DISTRO" == "debian" ]]; then
+        log_info "Ubuntu/Debian系统PostgreSQL服务启动..."
+        
+        # 检查PostgreSQL是否已安装，如果没有则安装
+        if ! dpkg -l | grep -q "^ii  postgresql "; then
+            log_warning "PostgreSQL服务器未安装，正在安装..."
+            sudo apt-get update
+            sudo apt-get install -y postgresql postgresql-contrib
+            log_success "PostgreSQL安装完成"
+        fi
+        
+        # 获取PostgreSQL版本
+        pg_versions=$(ls /etc/postgresql/ 2>/dev/null || true)
+        if [ -z "$pg_versions" ]; then
+            log_error "未找到PostgreSQL配置目录，重新安装PostgreSQL..."
+            sudo apt-get install -y postgresql postgresql-contrib
+            pg_versions=$(ls /etc/postgresql/ 2>/dev/null || true)
+            if [ -z "$pg_versions" ]; then
+                log_error "PostgreSQL安装失败"
+                exit 1
             fi
         fi
-    done
-    
-    if ! $service_started; then
-        log_error "无法启动PostgreSQL服务"
-        exit 1
+        
+        latest_version=$(echo "$pg_versions" | sort -V | tail -1)
+        log_info "检测到PostgreSQL版本: $latest_version"
+        
+        # 检查数据目录权限
+        data_dir="/var/lib/postgresql/${latest_version}/main"
+        if [ -d "$data_dir" ]; then
+            dir_owner=$(stat -c '%U' "$data_dir" 2>/dev/null || echo "unknown")
+            if [ "$dir_owner" != "postgres" ]; then
+                log_warning "修复数据目录权限..."
+                sudo chown -R postgres:postgres "$data_dir"
+                sudo chmod 700 "$data_dir"
+                log_success "数据目录权限已修复"
+            fi
+        fi
+        
+        # 可能的服务名称
+        service_names=("postgresql" "postgresql@${latest_version}-main" "postgresql-${latest_version}")
+        service_started=false
+        active_service=""
+        
+        # 查找可用的服务
+        for service in "${service_names[@]}"; do
+            if systemctl list-unit-files | grep -q "^${service}.service"; then
+                log_info "找到PostgreSQL服务: $service"
+                active_service="$service"
+                break
+            fi
+        done
+        
+        # 如果没找到服务，使用默认名称
+        if [ -z "$active_service" ]; then
+            log_info "使用默认服务名: postgresql"
+            active_service="postgresql"
+        fi
+        
+        # 启动服务
+        service_status=$(systemctl is-active "$active_service" 2>/dev/null || echo "inactive")
+        if [ "$service_status" != "active" ]; then
+            log_info "启动PostgreSQL服务: $active_service"
+            sudo systemctl enable "$active_service" 2>/dev/null || true
+            
+            if sudo systemctl start "$active_service"; then
+                log_success "PostgreSQL服务启动成功"
+                service_started=true
+            else
+                log_error "PostgreSQL服务启动失败"
+                log_info "查看服务状态:"
+                sudo systemctl status "$active_service" --no-pager -l || true
+                log_info "查看服务日志:"
+                sudo journalctl -u "$active_service" --no-pager -l -n 10 || true
+                exit 1
+            fi
+        else
+            log_success "PostgreSQL服务已在运行"
+            service_started=true
+        fi
+        
+        # 等待服务完全启动
+        if $service_started; then
+            log_info "等待PostgreSQL服务完全启动..."
+            sleep 5
+            
+            # 验证服务状态
+            if ! pgrep -f postgres >/dev/null; then
+                log_error "PostgreSQL进程未运行"
+                exit 1
+            fi
+            
+            if ! ss -tlnp | grep -q ":5432"; then
+                log_warning "PostgreSQL可能未在标准端口5432上监听"
+                log_info "当前监听的端口:"
+                ss -tlnp | grep postgres || true
+            fi
+            
+            # 测试连接
+            if sudo -u postgres psql -c "SELECT 1;" >/dev/null 2>&1; then
+                log_success "PostgreSQL连接测试成功"
+            else
+                log_error "PostgreSQL连接测试失败"
+                exit 1
+            fi
+        fi
+        
+    else
+        # RedHat/CentOS/Fedora系统
+        service_names=("postgresql" "postgresql-14" "postgresql-13" "postgresql-12")
+        service_started=false
+        
+        for service in "${service_names[@]}"; do
+            if systemctl list-unit-files | grep -q "^${service}.service"; then
+                log_info "找到PostgreSQL服务: $service"
+                
+                if ! systemctl is-active --quiet "$service"; then
+                    log_info "启动 $service..."
+                    sudo systemctl enable "$service"
+                    sudo systemctl start "$service"
+                fi
+                
+                if systemctl is-active --quiet "$service"; then
+                    log_success "PostgreSQL服务已启动: $service"
+                    service_started=true
+                    break
+                fi
+            fi
+        done
+        
+        if ! $service_started; then
+            log_error "无法启动PostgreSQL服务"
+            exit 1
+        fi
     fi
     
 elif [[ "$OS_TYPE" == "macos" ]]; then
-    if ! brew services list | grep postgresql@14 | grep -q started; then
-        log_info "启动PostgreSQL服务..."
-        brew services start postgresql@14
-        sleep 3
+    log_info "macOS系统PostgreSQL服务启动..."
+    
+    # 检查Homebrew是否安装
+    if ! command -v brew >/dev/null 2>&1; then
+        log_error "Homebrew未安装，请先安装Homebrew"
+        log_info "安装命令: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        exit 1
     fi
-    log_success "PostgreSQL服务已启动"
+    
+    # 检查PostgreSQL是否已安装，优先安装PostgreSQL 14
+    pg_installed=false
+    pg_version=""
+    
+    # 检查可能的PostgreSQL版本
+    for version in 16 15 14 13 12 ""; do
+        if [ -z "$version" ]; then
+            pkg_name="postgresql"
+        else
+            pkg_name="postgresql@${version}"
+        fi
+        
+        if brew list "$pkg_name" >/dev/null 2>&1; then
+            pg_installed=true
+            pg_version="$version"
+            log_success "找到已安装的PostgreSQL: $pkg_name"
+            break
+        fi
+    done
+    
+    # 如果没有安装，则安装PostgreSQL 14
+    if ! $pg_installed; then
+        log_warning "PostgreSQL未安装，正在安装PostgreSQL 14..."
+        brew install postgresql@14
+        pg_version="14"
+        pg_installed=true
+        log_success "PostgreSQL 14安装完成"
+    fi
+    
+    # 设置服务名称
+    if [ -z "$pg_version" ]; then
+        service_name="postgresql"
+    else
+        service_name="postgresql@${pg_version}"
+    fi
+    
+    # 停止现有服务（如果有）
+    log_info "停止现有PostgreSQL服务..."
+    brew services stop "$service_name" 2>/dev/null || true
+    
+    # 检查数据目录是否需要初始化
+    if [ -n "$pg_version" ]; then
+        data_dir="/opt/homebrew/var/postgresql@${pg_version}"
+        if [ ! -d "$data_dir" ]; then
+            data_dir="/usr/local/var/postgresql@${pg_version}"
+        fi
+    else
+        data_dir="/opt/homebrew/var/postgres"
+        if [ ! -d "$data_dir" ]; then
+            data_dir="/usr/local/var/postgres"
+        fi
+    fi
+    
+    # 初始化数据库（如果需要）
+    if [ ! -d "$data_dir" ] || [ ! -f "$data_dir/PG_VERSION" ]; then
+        log_info "初始化PostgreSQL数据库..."
+        if [ -n "$pg_version" ]; then
+            /opt/homebrew/bin/initdb --locale=C -E UTF-8 "$data_dir" 2>/dev/null || \
+            /usr/local/bin/initdb --locale=C -E UTF-8 "$data_dir" 2>/dev/null || \
+            initdb --locale=C -E UTF-8 "$data_dir"
+        else
+            initdb --locale=C -E UTF-8 "$data_dir"
+        fi
+        log_success "数据库初始化完成"
+    fi
+    
+    # 启动PostgreSQL服务
+    log_info "启动PostgreSQL服务: $service_name"
+    if brew services start "$service_name"; then
+        log_success "PostgreSQL服务启动成功"
+    else
+        log_warning "brew services启动失败，尝试手动启动..."
+        
+        # 手动启动
+        if [ -n "$pg_version" ]; then
+            pg_ctl_path="/opt/homebrew/bin/pg_ctl"
+            if [ ! -f "$pg_ctl_path" ]; then
+                pg_ctl_path="/usr/local/bin/pg_ctl"
+            fi
+        else
+            pg_ctl_path="pg_ctl"
+        fi
+        
+        if "$pg_ctl_path" -D "$data_dir" -l "$data_dir/server.log" start; then
+            log_success "PostgreSQL手动启动成功"
+        else
+            log_error "PostgreSQL启动失败"
+            log_info "查看日志: cat $data_dir/server.log"
+            exit 1
+        fi
+    fi
+    
+    # 等待服务启动
+    log_info "等待PostgreSQL服务完全启动..."
+    sleep 5
+    
+    # 验证服务状态
+    if ! pgrep -f postgres >/dev/null; then
+        log_error "PostgreSQL进程未运行"
+        exit 1
+    fi
+    
+    if ! lsof -i :5432 >/dev/null 2>&1; then
+        log_warning "PostgreSQL可能未在端口5432上监听"
+        log_info "当前监听的端口:"
+        lsof -i | grep postgres || true
+    fi
+    
+    # 测试连接
+    if psql postgres -c "SELECT 1;" >/dev/null 2>&1; then
+        log_success "PostgreSQL连接测试成功"
+    else
+        log_error "PostgreSQL连接测试失败"
+        exit 1
+    fi
+    
+    # 设置环境变量
+    if [ -n "$pg_version" ]; then
+        export PATH="/opt/homebrew/opt/postgresql@${pg_version}/bin:$PATH"
+        export PATH="/usr/local/opt/postgresql@${pg_version}/bin:$PATH"
+    fi
 fi
 
 # 等待PostgreSQL完全启动
