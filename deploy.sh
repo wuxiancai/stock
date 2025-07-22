@@ -29,23 +29,15 @@ echo "✅ 虚拟环境已激活"
 echo "📦 安装依赖..."
 pip install --upgrade pip setuptools wheel
 
-# 分步安装核心依赖，避免版本冲突
-pip install "fastapi>=0.100.0" "uvicorn[standard]>=0.20.0"
-pip install "sqlalchemy>=2.0.0" "alembic>=1.12.0" "psycopg2-binary>=2.9.0" "asyncpg>=0.28.0"
-pip install "redis>=4.5.0" "aioredis>=2.0.0"
-pip install "pydantic[email]>=2.0.0" "pydantic-settings>=2.0.0"
-pip install "python-jose[cryptography]>=3.3.0" "passlib[bcrypt]>=1.7.0"
-pip install "httpx>=0.24.0" "aiohttp>=3.8.0" "requests>=2.28.0"
-pip install "python-multipart>=0.0.6" "aiofiles>=23.0.0"
-pip install "pandas>=2.0.0" "numpy>=1.24.0"
-pip install "python-dotenv>=1.0.0" "loguru>=0.7.0" "APScheduler>=3.10.0"
-pip install "tushare>=1.2.0"
-
-# 安装AKShare（可能失败，但不影响核心功能）
-echo "📈 安装数据源..."
-pip install "akshare>=1.17.0" || echo "⚠️ AKShare安装失败，可稍后手动安装"
-
-pip install "python-dateutil>=2.8.0" "websockets>=11.0.0"
+# 使用requirements.txt安装所有依赖
+echo "📚 从requirements.txt安装依赖包..."
+if [ -f "requirements.txt" ]; then
+    pip install -r requirements.txt
+    echo "✅ 依赖安装完成"
+else
+    echo "❌ requirements.txt文件不存在"
+    exit 1
+fi
 
 # 创建必要目录
 mkdir -p logs uploads
@@ -68,6 +60,16 @@ for m in modules:
     except:
         print(f'❌ {m}')
         failed.append(m)
+
+# 特别检查 pydantic_settings
+try:
+    import pydantic_settings
+    print('✅ pydantic_settings')
+except:
+    print('❌ pydantic_settings - 正在安装...')
+    import subprocess
+    subprocess.run(['pip', 'install', 'pydantic-settings>=2.0.0'], check=True)
+    print('✅ pydantic_settings 安装完成')
         
 if failed:
     print(f'\\n⚠️ 模块导入失败: {failed}')
