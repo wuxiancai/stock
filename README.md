@@ -6,7 +6,7 @@
 
 ### 方式一：本地部署（推荐开发）
 ```bash
-# 一键部署
+# 一键部署（包含数据库启动）
 bash deploy.sh
 
 # 启动应用
@@ -17,6 +17,18 @@ python3 main.py
 ```bash
 # 一键Docker部署
 bash start_docker.sh
+```
+
+### 方式三：分步部署
+```bash
+# 1. 仅启动数据库服务
+bash start_db.sh
+
+# 2. 安装依赖和配置
+bash deploy.sh
+
+# 3. 启动应用
+python3 main.py
 ```
 
 就这么简单！
@@ -46,8 +58,11 @@ TUSHARE_TOKEN=your_token_here
 
 ### 本地部署
 ```bash
-# 重新部署
+# 完整重新部署
 bash deploy.sh
+
+# 仅启动数据库服务
+bash start_db.sh
 
 # 启动应用
 python3 main.py
@@ -69,6 +84,21 @@ docker-compose restart
 
 # 停止服务
 docker-compose down
+```
+
+### 数据库管理
+```bash
+# macOS (使用Homebrew)
+brew services start postgresql  # 启动PostgreSQL
+brew services start redis       # 启动Redis
+brew services stop postgresql   # 停止PostgreSQL
+brew services stop redis        # 停止Redis
+
+# Linux (使用systemctl)
+sudo systemctl start postgresql
+sudo systemctl start redis
+sudo systemctl stop postgresql
+sudo systemctl stop redis
 ```
 
 ## 📋 功能特性
