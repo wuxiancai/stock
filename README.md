@@ -1,31 +1,74 @@
 # 股票交易系统
 
-一个功能完整的股票交易系统，包含股票数据查询、技术分析、自选股管理、九转选股等功能。
+一个功能完整的股票交易系统，提供股票数据获取、技术分析、自选股管理等功能。
 
 ## 🚀 快速开始
 
-### 使用Docker（推荐）
-
+### 方式一：本地部署（推荐开发）
 ```bash
-# 克隆项目
-git clone <repository-url>
-cd stock
+# 一键部署
+bash deploy.sh
 
-# 快速启动（自动配置所有服务）
-./start.sh
+# 启动应用
+python3 main.py
 ```
 
-### 手动安装
-
+### 方式二：Docker部署（推荐生产）
 ```bash
-# 进入后端目录
-cd backend
+# 一键Docker部署
+bash start_docker.sh
+```
 
-# 运行部署脚本
-./deploy.sh
+就这么简单！
 
-# 启动服务
-python start.py
+## 📖 访问地址
+
+- **应用首页**: http://localhost:8000
+- **API文档**: http://localhost:8000/docs
+- **Docker部署**: http://localhost
+
+## ⚙️ 配置说明
+
+部署后会自动创建 `.env` 文件，根据需要修改以下配置：
+
+```env
+# 数据库连接（必须配置）
+DATABASE_URL=postgresql://postgres:password@localhost:5432/stock_db
+
+# Redis连接
+REDIS_URL=redis://localhost:6379/0
+
+# 数据源API（可选）
+TUSHARE_TOKEN=your_token_here
+```
+
+## 🛠️ 管理命令
+
+### 本地部署
+```bash
+# 重新部署
+bash deploy.sh
+
+# 启动应用
+python3 main.py
+
+# 查看日志
+tail -f logs/app.log
+```
+
+### Docker部署
+```bash
+# 查看状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs -f backend
+
+# 重启服务
+docker-compose restart
+
+# 停止服务
+docker-compose down
 ```
 
 ## 📋 功能特性
