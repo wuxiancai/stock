@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from typing import List, Optional
 from datetime import datetime, timedelta
-import bcrypt
+from passlib.context import CryptContext
 import jwt
 from fastapi import HTTPException, status
 
@@ -10,22 +10,20 @@ from app.database.models import User
 from app.schemas.user import UserCreate, UserUpdate
 from app.core.config import settings
 
+# 密码加密上下文
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 class AuthService:
     def __init__(self, db: Session):
         self.db = db
 
     def hash_password(self, password: str) -> str:
         """密码哈希"""
-        salt = bcrypt.gensalt()
-        hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
-        return hashed.decode('utf-8')
+        return pwd_context.hash(password)
 
     def verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """验证密码"""
-        return bcrypt.checkpw(
-            plain_password.encode('utf-8'), 
-            hashed_password.encode('utf-8')
-        )
+        return pwd_context.verify(plain_password, hashed_password)
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None):
         """创建访问令牌"""

@@ -4,7 +4,7 @@ from typing import List, Optional
 from datetime import date
 
 from app.database.database import get_db
-from app.services.analysis_service import AnalysisService
+from app.services.technical_analysis_service import TechnicalAnalysisService
 from app.api.v1.endpoints.auth import oauth2_scheme
 from app.services.auth_service import AuthService
 
@@ -20,7 +20,7 @@ async def get_nine_turn_signals(
 ):
     """获取九转信号"""
     try:
-        analysis_service = AnalysisService(db)
+        analysis_service = TechnicalAnalysisService(db)
         signals = await analysis_service.get_nine_turn_signals(
             stock_code=stock_code,
             start_date=start_date,
@@ -42,7 +42,7 @@ async def calculate_nine_turn_signals(
         auth_service = AuthService(db)
         await auth_service.get_current_user(token)
         
-        analysis_service = AnalysisService(db)
+        analysis_service = TechnicalAnalysisService(db)
         result = await analysis_service.calculate_nine_turn_signals(stock_code)
         return {"message": "九转信号计算完成", "signals_count": result}
     except HTTPException:
@@ -59,7 +59,7 @@ async def nine_turn_screening(
 ):
     """九转选股"""
     try:
-        analysis_service = AnalysisService(db)
+        analysis_service = TechnicalAnalysisService(db)
         results = await analysis_service.nine_turn_screening(
             signal_type=signal_type,
             min_signal_value=min_signal_value,
@@ -78,7 +78,7 @@ async def get_technical_analysis(
 ):
     """获取技术分析"""
     try:
-        analysis_service = AnalysisService(db)
+        analysis_service = TechnicalAnalysisService(db)
         analysis = await analysis_service.get_technical_analysis(
             stock_code=stock_code,
             period=period,
@@ -96,7 +96,7 @@ async def get_support_resistance(
 ):
     """获取支撑阻力位"""
     try:
-        analysis_service = AnalysisService(db)
+        analysis_service = TechnicalAnalysisService(db)
         levels = await analysis_service.get_support_resistance_levels(
             stock_code=stock_code,
             period=period
@@ -117,7 +117,7 @@ async def custom_screening(
         auth_service = AuthService(db)
         await auth_service.get_current_user(token)
         
-        analysis_service = AnalysisService(db)
+        analysis_service = TechnicalAnalysisService(db)
         results = await analysis_service.custom_screening(conditions, limit)
         return results
     except HTTPException:
@@ -133,7 +133,7 @@ async def pattern_recognition(
 ):
     """形态识别"""
     try:
-        analysis_service = AnalysisService(db)
+        analysis_service = TechnicalAnalysisService(db)
         patterns = await analysis_service.pattern_recognition(
             stock_code=stock_code,
             pattern_type=pattern_type

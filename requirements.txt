@@ -17,8 +17,8 @@ pydantic[email]>=2.0.0
 pydantic-settings>=2.0.0
 
 # 认证
-python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.0
+PyJWT>=2.8.0
 
 # HTTP客户端
 httpx>=0.24.0

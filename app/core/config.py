@@ -14,44 +14,60 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "your-secret-key-here"
     
     # 服务端口配置
+    PORT: int = 8080  # 兼容性字段
     BACKEND_PORT: int = 8080
     FRONTEND_PORT: int = 3000
     
     # 数据库配置
     DATABASE_URL: str = "postgresql://username:password@localhost:5432/stock_trading"
+    ASYNC_DATABASE_URL: Optional[str] = None  # 异步数据库URL
     REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_MAX_CONNECTIONS: int = 20
     
     # 数据源API配置
     TUSHARE_TOKEN: Optional[str] = None
     AKSHARE_TIMEOUT: int = 30
     
+    # JWT配置
+    JWT_SECRET_KEY: str = "your-jwt-secret-key"
+    ALGORITHM: str = "HS256"  # JWT算法
+    JWT_ALGORITHM: str = "HS256"  # 兼容性字段
+    JWT_EXPIRE_MINUTES: int = 1440
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30  # 访问令牌过期时间
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 刷新令牌过期天数
+    
     # 日志配置
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "logs/app.log"
+    LOG_ROTATION: str = "1 day"  # 日志轮转
+    LOG_RETENTION: str = "30 days"  # 日志保留时间
     
     # 缓存配置
     CACHE_TTL: int = 300
-    REDIS_MAX_CONNECTIONS: int = 20
+    STOCK_DATA_CACHE_TTL: int = 60  # 股票数据缓存TTL
+    REALTIME_DATA_CACHE_TTL: int = 5  # 实时数据缓存TTL
     
-    # JWT配置
-    JWT_SECRET_KEY: str = "your-jwt-secret-key"
-    JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 1440
-    
-    # 市场时间配置
+    # 数据更新配置
     MARKET_OPEN_TIME: str = "09:30"
     MARKET_CLOSE_TIME: str = "15:00"
     DATA_UPDATE_INTERVAL: int = 60
+    AUTO_UPDATE_ENABLED: bool = True  # 自动更新开关
+    
+    # 技术分析配置
+    NINE_TURN_LOOKBACK_DAYS: int = 30  # 九转回看天数
+    TECHNICAL_INDICATOR_PERIODS: str = "5,10,20,30,60"  # 技术指标周期
     
     # 邮件配置
     SMTP_SERVER: Optional[str] = None
     SMTP_PORT: int = 587
     SMTP_USERNAME: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
+    SMTP_TLS: bool = True  # SMTP TLS开关
     
     # 监控配置
     ENABLE_MONITORING: bool = True
     ALERT_EMAIL: Optional[str] = None
+    HEALTH_CHECK_INTERVAL: int = 60  # 健康检查间隔
     
     # CORS配置
     CORS_ORIGINS: Union[str, list] = [
@@ -60,6 +76,7 @@ class Settings(BaseSettings):
         "http://localhost:8080",
         "http://127.0.0.1:8080"
     ]
+    CORS_ALLOW_CREDENTIALS: bool = True  # CORS允许凭据
     
     @field_validator('CORS_ORIGINS')
     @classmethod
@@ -131,6 +148,8 @@ class Settings(BaseSettings):
     @property
     def database_url_async(self) -> str:
         """异步数据库连接URL"""
+        if self.ASYNC_DATABASE_URL:
+            return self.ASYNC_DATABASE_URL
         return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
     
     @property
