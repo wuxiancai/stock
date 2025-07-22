@@ -95,3 +95,14 @@ class TechnicalIndicatorResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class StockListResponse(BaseModel):
+    """股票列表响应"""
+    stocks: List[StockResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    
+    class Config:
+        from_attributes = True
