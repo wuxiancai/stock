@@ -163,18 +163,18 @@ fi
 # 检查应用文件并启动
 if [ -f "app/main.py" ]; then
     echo -e "${BLUE}📡 启动FastAPI应用...${NC}"
-    echo "访问地址: http://localhost:${PORT:-8000}"
-    echo "API文档: http://localhost:${PORT:-8000}/docs"
+    echo "访问地址: http://localhost:${PORT:-8080}"
+    echo "API文档: http://localhost:${PORT:-8080}/docs"
     echo "按 Ctrl+C 停止服务"
     echo ""
-    uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload
+    uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8080} --reload
 elif [ -f "main.py" ]; then
     echo -e "${BLUE}📡 启动FastAPI应用...${NC}"
-    echo "访问地址: http://localhost:${PORT:-8000}"
-    echo "API文档: http://localhost:${PORT:-8000}/docs"
+    echo "访问地址: http://localhost:${PORT:-8080}"
+    echo "API文档: http://localhost:${PORT:-8080}/docs"
     echo "按 Ctrl+C 停止服务"
     echo ""
-    uvicorn main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload
+    uvicorn main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8080} --reload
 else
     echo "❌ 未找到应用主文件"
     exit 1
@@ -224,12 +224,12 @@ if [ -f "app/main.py" ]; then
     echo "  • 详细调试日志"
     echo "  • 错误堆栈跟踪"
     echo ""
-    echo "访问地址: http://localhost:${PORT:-8000}"
-    echo "API文档: http://localhost:${PORT:-8000}/docs"
-    echo "ReDoc文档: http://localhost:${PORT:-8000}/redoc"
+    echo "访问地址: http://localhost:${PORT:-8080}"
+    echo "API文档: http://localhost:${PORT:-8080}/docs"
+    echo "ReDoc文档: http://localhost:${PORT:-8080}/redoc"
     echo "按 Ctrl+C 停止服务"
     echo ""
-    uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload --log-level debug
+    uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8080} --reload --log-level debug
 elif [ -f "main.py" ]; then
     echo -e "${BLUE}📡 启动FastAPI应用 (开发模式)...${NC}"
     echo -e "${YELLOW}开发模式特性:${NC}"
@@ -237,12 +237,12 @@ elif [ -f "main.py" ]; then
     echo "  • 详细调试日志"
     echo "  • 错误堆栈跟踪"
     echo ""
-    echo "访问地址: http://localhost:${PORT:-8000}"
-    echo "API文档: http://localhost:${PORT:-8000}/docs"
-    echo "ReDoc文档: http://localhost:${PORT:-8000}/redoc"
+    echo "访问地址: http://localhost:${PORT:-8080}"
+    echo "API文档: http://localhost:${PORT:-8080}/docs"
+    echo "ReDoc文档: http://localhost:${PORT:-8080}/redoc"
     echo "按 Ctrl+C 停止服务"
     echo ""
-    uvicorn main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload --log-level debug
+    uvicorn main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8080} --reload --log-level debug
 else
     echo "❌ 未找到应用主文件"
     exit 1
@@ -392,6 +392,6 @@ echo "停止应用："
 echo "  ./stop.sh"
 echo ""
 echo "访问地址："
-echo "  应用: http://localhost:8000"
-echo "  API文档: http://localhost:8000/docs"
-echo "  ReDoc文档: http://localhost:8000/redoc"
+echo "  应用: http://localhost:8080"
+echo "  API文档: http://localhost:8080/docs"
+echo "  ReDoc文档: http://localhost:8080/redoc"

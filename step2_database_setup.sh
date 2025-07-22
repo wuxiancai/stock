@@ -607,10 +607,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30
 DEBUG=true
 LOG_LEVEL=INFO
 HOST=0.0.0.0
-PORT=8000
+PORT=8080
 
 # CORS配置
-CORS_ORIGINS=["http://localhost:3000","http://localhost:8000","http://127.0.0.1:8000"]
+CORS_ORIGINS=["http://localhost:3000","http://localhost:8080","http://127.0.0.1:8080"]
 
 # 数据库连接池配置
 DB_POOL_SIZE=20

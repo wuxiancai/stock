@@ -240,8 +240,8 @@ python start.py
 ### API文档
 
 启动服务后访问：
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:8080/docs
+- ReDoc: http://localhost:8080/redoc
 
 ### 数据库管理
 
