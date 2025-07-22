@@ -37,7 +37,7 @@ events {
 
 http {
     upstream backend {
-        server backend:8000;
+        server backend:8080;
     }
 
     server {
@@ -85,7 +85,7 @@ echo ""
 echo "📖 服务访问地址:"
 echo "   应用首页: http://localhost"
 echo "   API文档: http://localhost/docs"
-echo "   直接API: http://localhost:8000/docs"
+echo "   直接API: http://localhost:8080/docs"
 echo ""
 echo "🔧 管理命令:"
 echo "   查看状态: docker-compose ps"

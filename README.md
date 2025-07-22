@@ -23,8 +23,8 @@ bash start_docker.sh
 
 ## 📖 访问地址
 
-- **应用首页**: http://localhost:8000
-- **API文档**: http://localhost:8000/docs
+- **应用首页**: http://localhost:8080
+- **API文档**: http://localhost:8080/docs
 - **Docker部署**: http://localhost
 
 ## ⚙️ 配置说明
