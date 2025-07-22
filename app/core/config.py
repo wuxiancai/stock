@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     SECRET_KEY: str = "your-secret-key-here"
+    HOST: str = "0.0.0.0"  # 服务绑定地址
     
     # 服务端口配置
     PORT: int = 8080  # 兼容性字段
@@ -46,9 +47,12 @@ class Settings(BaseSettings):
     LOG_FILE: str = "logs/app.log"
     LOG_ROTATION: str = "1 day"  # 日志轮转
     LOG_RETENTION: str = "30 days"  # 日志保留时间
+    LOG_MAX_SIZE: int = 10485760  # 日志文件最大大小（10MB）
+    LOG_BACKUP_COUNT: int = 5  # 日志备份文件数量
     
     # 缓存配置
     CACHE_TTL: int = 300
+    CACHE_MAX_SIZE: int = 1000  # 缓存最大条目数
     STOCK_DATA_CACHE_TTL: int = 60  # 股票数据缓存TTL
     REALTIME_DATA_CACHE_TTL: int = 5  # 实时数据缓存TTL
     
