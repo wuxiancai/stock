@@ -44,7 +44,7 @@ fi
 
 # 创建必要目录
 mkdir -p logs uploads
-
+sudo apt install postgresql-client
 # 配置环境变量
 if [ ! -f ".env" ]; then
     cp .env.example .env
