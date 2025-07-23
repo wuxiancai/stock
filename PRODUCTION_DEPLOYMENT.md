@@ -4,10 +4,29 @@
 
 除了Docker部署方式外，股票交易系统还提供了多种生产环境部署方案，适用于不同的服务器环境和需求。
 
+## 🚀 快速部署（推荐）
+
+### Ubuntu 系统一键部署
+
+```bash
+# Ubuntu系统专用一键部署脚本
+./deploy_ubuntu.sh
+```
+
+这个脚本会自动完成：
+- ✅ 安装所有系统依赖
+- ✅ 配置PostgreSQL和Redis
+- ✅ 创建虚拟环境和安装Python依赖
+- ✅ 配置Nginx反向代理
+- ✅ 配置Supervisor进程管理
+- ✅ 设置防火墙规则
+- ✅ 启动所有服务
+
 ## 部署方案对比
 
 | 部署方案 | 适用场景 | 优点 | 缺点 |
 |---------|---------|------|------|
+| **Ubuntu一键部署** | Ubuntu服务器 | 全自动配置、零配置部署 | 仅限Ubuntu |
 | **Docker** | 容器化环境 | 环境一致性、易于扩展 | 需要Docker知识 |
 | **Gunicorn + Nginx** | 传统服务器 | 性能优秀、配置灵活 | 配置复杂 |
 | **Systemd服务** | Linux系统服务 | 开机自启、系统集成 | 仅限Linux |
@@ -284,7 +303,47 @@ server {
 
 ## 8. 故障排除
 
-### 8.1 常见问题
+### 8.1 Ubuntu系统常见问题
+
+#### 问题1: systemd服务启动失败
+```
+Failed to locate executable /home/ubuntu/...
+```
+
+**解决方案**:
+1. 使用修复后的 `install_service.sh` 脚本
+2. 或者直接使用 `deploy_ubuntu.sh` 一键部署
+3. 确保虚拟环境和gunicorn配置文件存在
+
+```bash
+# 检查虚拟环境
+ls -la venv/
+
+# 检查gunicorn
+venv/bin/gunicorn --version
+
+# 重新安装服务
+sudo ./install_service.sh
+```
+
+#### 问题2: 权限问题
+```bash
+# 确保文件权限正确
+sudo chown -R $USER:$USER /path/to/stock/
+chmod +x start_prod.sh stop_prod.sh
+```
+
+#### 问题3: 数据库连接失败
+```bash
+# 检查PostgreSQL状态
+sudo systemctl status postgresql
+
+# 重置数据库
+sudo -u postgres psql -c "DROP DATABASE IF EXISTS stock_trading_db;"
+sudo -u postgres psql -c "CREATE DATABASE stock_trading_db OWNER stock_user;"
+```
+
+### 8.2 通用问题
 
 1. **端口被占用**
    ```bash

@@ -64,6 +64,62 @@ fi
 chmod +x "$CURRENT_DIR/start_prod.sh"
 chmod +x "$CURRENT_DIR/stop_prod.sh"
 
+# 确保虚拟环境存在
+if [ ! -d "$CURRENT_DIR/venv" ]; then
+    log_error "虚拟环境不存在，请先运行 python3 -m venv venv"
+    exit 1
+fi
+
+# 确保gunicorn配置文件存在
+if [ ! -f "$CURRENT_DIR/gunicorn.conf.py" ]; then
+    log_info "创建Gunicorn配置文件..."
+    cat > "$CURRENT_DIR/gunicorn.conf.py" << 'GUNICORN_EOF'
+import multiprocessing
+import os
+
+# 服务器套接字
+bind = "0.0.0.0:8080"
+backlog = 2048
+
+# 工作进程
+workers = multiprocessing.cpu_count() * 2 + 1
+worker_class = "uvicorn.workers.UvicornWorker"
+worker_connections = 1000
+max_requests = 1000
+max_requests_jitter = 50
+preload_app = True
+
+# 超时设置
+timeout = 30
+keepalive = 2
+graceful_timeout = 30
+
+# 日志
+accesslog = "logs/access.log"
+errorlog = "logs/error.log"
+loglevel = "info"
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
+
+# 进程命名
+proc_name = "stock-trading-api"
+
+# 安全
+limit_request_line = 4094
+limit_request_fields = 100
+limit_request_field_size = 8190
+
+# 重启设置
+max_requests = 1000
+max_requests_jitter = 100
+
+# 环境变量
+raw_env = [
+    'ENVIRONMENT=production',
+]
+GUNICORN_EOF
+    chown "$CURRENT_USER:$CURRENT_USER" "$CURRENT_DIR/gunicorn.conf.py"
+fi
+
 # 创建systemd服务文件
 SERVICE_FILE="/etc/systemd/system/stock-trading.service"
 
@@ -77,24 +133,33 @@ After=network.target postgresql.service redis.service
 Wants=postgresql.service redis.service
 
 [Service]
-Type=forking
+Type=exec
 User=$CURRENT_USER
 Group=$CURRENT_USER
 WorkingDirectory=$CURRENT_DIR
 Environment=ENVIRONMENT=production
 Environment=PYTHONPATH=$CURRENT_DIR
 
-# 启动命令
-ExecStart=$CURRENT_DIR/start_prod.sh --daemon
-ExecStop=$CURRENT_DIR/stop_prod.sh
+# 启动前准备
+ExecStartPre=/bin/bash -c 'source $CURRENT_DIR/venv/bin/activate && alembic upgrade head'
+
+# 启动命令 - 直接使用gunicorn而不是脚本
+ExecStart=$CURRENT_DIR/venv/bin/gunicorn main:app -c $CURRENT_DIR/gunicorn.conf.py
+
+# 停止命令
+ExecStop=/bin/kill -TERM \$MAINPID
+
+# 重载命令
 ExecReload=/bin/kill -HUP \$MAINPID
 
 # 进程管理
-PIDFile=$CURRENT_DIR/logs/gunicorn.pid
 Restart=always
 RestartSec=10
 StartLimitInterval=60
 StartLimitBurst=3
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
 
 # 安全设置
 NoNewPrivileges=true
