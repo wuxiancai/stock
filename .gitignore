@@ -1,4 +1,4 @@
-# 忽略Python相关文件
+# 忽略 Python 相关文件
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,6 +16,8 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -25,11 +27,20 @@ MANIFEST
 venv/
 env/
 ENV/
+env.bak/
+venv.bak/
+
+# IDE 相关
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # 环境变量文件
 .env
 .env.local
-.env.*.local
+.env.production
 
 # 日志文件
 logs/
@@ -37,32 +48,14 @@ logs/
 
 # 数据库文件
 *.db
+*.sqlite
 *.sqlite3
 
 # 缓存文件
 .cache/
 .pytest_cache/
 
-# IDE文件
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# 操作系统文件
-.DS_Store
-Thumbs.db
-
-# 上传文件
-uploads/
-data/
-
-# 临时文件
-tmp/
-temp/
-
-# 测试覆盖率
+# 覆盖率报告
 htmlcov/
 .coverage
 .coverage.*
@@ -70,25 +63,59 @@ coverage.xml
 *.cover
 .hypothesis/
 
+# 上传文件
+uploads/
+data/
+
+# Celery 相关
+celerybeat-schedule
+celerybeat.pid
+
+# Docker 相关
+.dockerignore
+
+# macOS 相关
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# 编译文件
+*.pyc
+*.pyo
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# pyenv
-.python-version
+# 测试相关
+.tox/
+.nox/
+.coverage
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
 
 # 文档构建
 docs/_build/
 
-# 备份文件
-*.bak
-*.backup
+# PyBuilder
+target/
 
-# 压缩文件
-*.zip
-*.tar.gz
-*.rar
+# Alembic
+alembic/versions/*.pyc
 
-# 证书文件
+# SSL 证书
+ssl/
 *.pem
 *.key
 *.crt
+
+# 备份文件
+backup_*.sql

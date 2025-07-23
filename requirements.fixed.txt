@@ -1,0 +1,82 @@
+# 固定版本的 requirements 文件（备份）
+# 如果需要精确的版本控制，可以使用这个文件
+# 使用方法: pip install -r requirements.fixed.txt
+
+# 核心框架
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# 数据库相关
+sqlalchemy==2.0.23
+alembic==1.13.1
+psycopg2-binary==2.9.10
+asyncpg==0.29.0
+
+# Redis缓存
+redis==5.0.1
+aioredis==2.0.1
+
+# 任务队列
+celery==5.3.4
+flower==2.0.1
+
+# 数据处理
+pandas==2.1.4
+numpy==1.25.2
+# talib-binary==0.4.26  # 版本不存在，已注释
+
+# 数据源
+tushare==1.2.89
+# akshare==1.12.80  # 版本不存在，已注释
+
+# HTTP客户端
+httpx==0.25.2
+aiohttp==3.9.1
+requests==2.31.0
+
+# 工具库
+python-dotenv==1.0.0
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+email-validator==2.1.0
+
+# 日志和监控
+loguru==0.7.2
+prometheus-client==0.19.0
+
+# 测试
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+
+# 开发工具
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+
+# WebSocket支持
+websockets==12.0
+python-socketio==5.10.0
+
+# 时间处理
+pytz==2023.3
+python-dateutil==2.8.2
+
+# 数据验证
+marshmallow==3.20.1
+
+# 配置管理
+dynaconf==3.2.4
+
+# 安全
+cryptography==41.0.8
+bcrypt==4.1.2
+
+# 其他工具
+click==8.1.7
+rich==13.7.0
+typer==0.9.0

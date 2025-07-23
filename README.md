@@ -1,357 +1,250 @@
 # 股票交易系统
 
-一个功能完整的股票交易系统，提供股票数据获取、技术分析、自选股管理等功能。
+基于 FastAPI 的现代化股票数据分析平台，提供实时股票数据获取、技术指标计算、九转序列策略分析等功能。
 
-## 🚀 快速开始
+## 🚀 功能特性
 
-### 方式一：本地部署（推荐开发）
+- **实时数据获取**: 支持 Tushare 和 AKShare 数据源
+- **技术指标计算**: MA、EMA、MACD、RSI、KDJ、布林带等
+- **九转序列策略**: TD Sequential 买卖信号分析
+- **WebSocket 推送**: 实时数据推送服务
+- **异步任务处理**: 基于 Celery 的后台任务队列
+- **缓存优化**: Redis 缓存提升性能
+- **API 文档**: 自动生成的 OpenAPI 文档
+- **容器化部署**: Docker 和 Docker Compose 支持
+
+## 📋 系统要求
+
+- Python 3.9+
+- PostgreSQL 15+
+- Redis 7+
+- TA-Lib (技术分析库)
+
+## 🛠️ 快速开始
+
+### macOS 环境设置
+
 ```bash
-# 一键部署（包含数据库启动）
-bash deploy.sh
+# 克隆项目
+git clone <repository-url>
+cd stock
 
-# 启动应用
-python3 main.py
+# 运行自动化设置脚本
+chmod +x setup_macos.sh
+./setup_macos.sh
 ```
 
-### 方式二：Docker部署（推荐生产）
+### 手动安装
+
+1. **安装依赖**
 ```bash
-# 一键Docker部署
-bash start_docker.sh
+# 安装 Homebrew (如果未安装)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 安装系统依赖
+brew install postgresql@15 redis ta-lib
+
+# 启动服务
+brew services start postgresql@15
+brew services start redis
 ```
 
-### 方式三：分步部署
+2. **设置 Python 环境**
 ```bash
-# 1. 仅启动数据库服务
-bash start_db.sh
+# 创建虚拟环境
+python3 -m venv venv
+source venv/bin/activate
 
-# 2. 安装依赖和配置
-bash deploy.sh
-
-# 3. 启动应用
-python3 main.py
+# 安装 Python 依赖
+pip install -r requirements.txt
 ```
 
-就这么简单！
+3. **配置环境变量**
+```bash
+# 复制环境变量模板
+cp .env.example .env
 
-## 📖 访问地址
-
-- **应用首页**: http://localhost:8080
-- **API文档**: http://localhost:8080/docs
-- **Docker部署**: http://localhost
-
-## ⚙️ 配置说明
-
-部署后会自动创建 `.env` 文件，根据需要修改以下配置：
-
-```env
-# 数据库连接（必须配置）
-DATABASE_URL=postgresql://postgres:password@localhost:5432/stock_db
-
-# Redis连接
-REDIS_URL=redis://localhost:6379/0
-
-# 数据源API（可选）
-TUSHARE_TOKEN=your_token_here
+# 编辑 .env 文件，设置必要的配置
+# 特别是 TUSHARE_TOKEN
 ```
 
-## 🛠️ 管理命令
-
-### 本地部署
+4. **初始化数据库**
 ```bash
-# 完整重新部署
-bash deploy.sh
+# 初始化数据库
+./scripts/db_manager.sh init
 
-# 仅启动数据库服务
-bash start_db.sh
-
-# 启动应用
-python3 main.py
-
-# 查看日志
-tail -f logs/app.log
+# 运行数据库迁移
+./scripts/db_manager.sh migrate
 ```
 
-### Docker部署
+## 🚀 运行应用
+
+### 开发环境
+
 ```bash
-# 查看状态
+# 启动开发环境
+./start_dev.sh
+
+# 或者分别启动各个服务
+python main.py                              # API 服务
+./scripts/celery_manager.sh worker          # Celery Worker
+./scripts/celery_manager.sh beat            # Celery Beat
+./scripts/celery_manager.sh flower          # Flower 监控
+```
+
+### 生产环境 (Docker)
+
+```bash
+# 构建并启动所有服务
+docker-compose up -d
+
+# 查看服务状态
 docker-compose ps
 
 # 查看日志
-docker-compose logs -f backend
-
-# 重启服务
-docker-compose restart
-
-# 停止服务
-docker-compose down
+docker-compose logs -f api
 ```
+
+## 📚 API 文档
+
+启动服务后，访问以下地址查看 API 文档：
+
+- **Swagger UI**: http://localhost:8080/docs
+- **ReDoc**: http://localhost:8080/redoc
+- **OpenAPI JSON**: http://localhost:8080/openapi.json
+
+## 🔧 管理脚本
 
 ### 数据库管理
-```bash
-# macOS (使用Homebrew)
-brew services start postgresql  # 启动PostgreSQL
-brew services start redis       # 启动Redis
-brew services stop postgresql   # 停止PostgreSQL
-brew services stop redis        # 停止Redis
 
-# Linux (使用systemctl)
-sudo systemctl start postgresql
-sudo systemctl start redis
-sudo systemctl stop postgresql
-sudo systemctl stop redis
+```bash
+./scripts/db_manager.sh init      # 初始化数据库
+./scripts/db_manager.sh migrate   # 运行迁移
+./scripts/db_manager.sh backup    # 备份数据库
+./scripts/db_manager.sh status    # 检查状态
+./scripts/db_manager.sh clean     # 清理旧数据
 ```
 
-## 📋 功能特性
+### Celery 管理
 
-### 🔐 用户系统
-- 用户注册、登录、JWT认证
-- 用户权限管理
-- 个人信息管理
+```bash
+./scripts/celery_manager.sh worker   # 启动 Worker
+./scripts/celery_manager.sh beat     # 启动 Beat
+./scripts/celery_manager.sh flower   # 启动 Flower
+./scripts/celery_manager.sh status   # 检查状态
+```
 
-### 📊 股票数据
-- 股票基本信息查询
-- 实时行情数据
-- 历史K线数据
-- 股票搜索功能
+## 🧪 测试
 
-### 📈 技术分析
-- 移动平均线（MA、EMA）
-- MACD、RSI、KDJ指标
-- 布林带（Bollinger Bands）
-- 九转买卖信号
-- 支撑阻力位分析
+```bash
+# 运行所有测试
+./run_tests.sh
 
-### ⭐ 自选股管理
-- 添加/删除自选股
-- 自选股实时行情
-- 自选股技术分析
-- 批量操作
+# 或者使用 pytest
+pytest tests/ -v --cov=app
+```
 
-### 🏪 市场行情
-- 市场概览
-- 涨跌幅排行榜
-- 成交量/成交额排行
-- 行业表现分析
-- 资金流向统计
+## 📊 监控
 
-### 🔍 选股功能
-- 九转信号选股
-- 自定义条件选股
-- 技术形态识别
-- 多维度筛选
+- **Flower (Celery 监控)**: http://localhost:5555
+- **系统健康检查**: http://localhost:8080/health
+- **WebSocket 测试**: ws://localhost:8080/ws
 
-## 🛠️ 技术栈
+## 🔄 定时任务
 
-### 后端
-- **框架**: FastAPI
-- **数据库**: PostgreSQL
-- **缓存**: Redis
-- **ORM**: SQLAlchemy
-- **认证**: JWT
-- **数据分析**: Pandas, NumPy
+系统包含以下自动化任务：
 
-### 数据源
-- **Tushare**: 专业金融数据接口
-- **AKShare**: 开源财经数据接口
-
-### 部署
-- **容器化**: Docker + Docker Compose
-- **反向代理**: Nginx
-- **进程管理**: Uvicorn
+- **每日 6:00**: 更新股票基础信息
+- **工作日 16:00**: 更新日线数据
+- **工作日 16:30**: 计算技术指标
+- **工作日 17:00**: 计算九转信号
+- **每日 2:00**: 清理旧数据
+- **每 5 分钟**: 系统健康检查
 
 ## 📁 项目结构
 
 ```
 stock/
-├── backend/                    # 后端服务
-│   ├── app/
-│   │   ├── api/               # API路由
-│   │   ├── core/              # 核心配置
-│   │   ├── database/          # 数据库相关
-│   │   ├── schemas/           # 数据模型
-│   │   └── services/          # 业务逻辑
-│   ├── utils/                 # 工具函数
-│   ├── main.py               # 应用入口
-│   ├── start.py              # 启动脚本
-│   ├── deploy.sh             # 部署脚本
-│   ├── Dockerfile            # Docker配置
-│   └── requirements.txt      # 依赖包
-├── docker-compose.yml         # Docker编排
-├── start.sh                  # 快速启动脚本
-├── init.sql                  # 数据库初始化
-├── .env.example              # 环境变量示例
-└── README.md                 # 项目说明
+├── app/                    # 应用核心代码
+│   ├── api.py             # API 路由
+│   ├── cache.py           # Redis 缓存
+│   ├── config.py          # 配置管理
+│   ├── database.py        # 数据库连接
+│   ├── data_sources.py    # 数据源管理
+│   ├── middleware.py      # 中间件
+│   ├── models.py          # 数据模型
+│   ├── services.py        # 业务逻辑
+│   ├── tasks.py           # Celery 任务
+│   ├── technical_analysis.py # 技术分析
+│   └── websocket.py       # WebSocket 服务
+├── alembic/               # 数据库迁移
+├── nginx/                 # Nginx 配置
+├── scripts/               # 管理脚本
+├── static/                # 静态文件
+├── tests/                 # 测试代码
+├── docker-compose.yml     # Docker 编排
+├── Dockerfile            # Docker 镜像
+├── main.py               # 应用入口
+└── requirements.txt      # Python 依赖
 ```
 
-## ⚙️ 配置说明
+## 🔐 安全配置
 
-### 环境变量
+1. **环境变量**: 敏感信息通过环境变量配置
+2. **CORS**: 配置跨域访问策略
+3. **速率限制**: API 请求频率限制
+4. **安全头**: HTTP 安全响应头
+5. **输入验证**: Pydantic 模型验证
 
-复制 `.env.example` 为 `.env` 并配置以下关键参数：
+## 🚨 故障排除
 
-```env
-# 数据库配置
-DATABASE_URL=postgresql://username:password@localhost:5432/stock_db
+### 常见问题
 
-# Redis配置
-REDIS_URL=redis://localhost:6379/0
-
-# JWT密钥（生产环境必须修改）
-SECRET_KEY=your-secret-key-here
-
-# 数据源API Token
-TUSHARE_TOKEN=your_tushare_token_here
-```
-
-### 数据源配置
-
-1. **Tushare Token**: 
-   - 注册 [Tushare](https://tushare.pro/) 账户
-   - 获取API Token
-   - 配置到环境变量 `TUSHARE_TOKEN`
-
-2. **AKShare**: 
-   - 无需注册，开箱即用
-   - 部分接口有频率限制
-
-## 🔧 开发指南
-
-### 本地开发
-
-```bash
-# 安装依赖
-cd backend
-pip install -r requirements.txt
-
-# 配置环境变量
-cp ../.env.example .env
-# 编辑 .env 文件
-
-# 启动数据库和Redis（使用Docker）
-docker-compose up postgres redis -d
-
-# 初始化数据库
-python -c "from app.database.init_db import init_database; init_database()"
-
-# 启动开发服务器
-python start.py
-```
-
-### API文档
-
-启动服务后访问：
-- Swagger UI: http://localhost:8080/docs
-- ReDoc: http://localhost:8080/redoc
-
-### 数据库管理
-
-```bash
-# 查看数据库状态
-docker-compose exec postgres psql -U stock_user -d stock_db
-
-# 备份数据库
-docker-compose exec postgres pg_dump -U stock_user stock_db > backup.sql
-
-# 恢复数据库
-docker-compose exec -T postgres psql -U stock_user -d stock_db < backup.sql
-```
-
-## 📊 API接口
-
-### 认证接口
-- `POST /api/v1/auth/register` - 用户注册
-- `POST /api/v1/auth/login` - 用户登录
-- `GET /api/v1/auth/me` - 获取用户信息
-
-### 股票接口
-- `GET /api/v1/stocks/` - 股票列表
-- `GET /api/v1/stocks/{ts_code}` - 股票详情
-- `GET /api/v1/stocks/{ts_code}/history` - 历史数据
-- `GET /api/v1/stocks/search` - 股票搜索
-
-### 市场接口
-- `GET /api/v1/market/overview` - 市场概览
-- `GET /api/v1/market/gainers` - 涨幅榜
-- `GET /api/v1/market/losers` - 跌幅榜
-
-### 分析接口
-- `GET /api/v1/analysis/nine-turn` - 九转信号
-- `POST /api/v1/analysis/nine-turn/screen` - 九转选股
-- `GET /api/v1/analysis/technical/{ts_code}` - 技术分析
-
-### 自选股接口
-- `GET /api/v1/favorites/` - 自选股列表
-- `POST /api/v1/favorites/` - 添加自选股
-- `DELETE /api/v1/favorites/{id}` - 删除自选股
-
-## 🚀 部署指南
-
-### Docker部署（推荐）
-
-```bash
-# 使用快速启动脚本
-./start.sh
-
-# 或手动启动
-docker-compose up -d
-```
-
-### 生产环境部署
-
-1. **配置环境变量**
+1. **数据库连接失败**
    ```bash
-   # 修改生产环境配置
-   cp .env.example .env
-   # 编辑 .env，设置生产环境参数
+   # 检查 PostgreSQL 状态
+   brew services list | grep postgresql
+   
+   # 重启 PostgreSQL
+   brew services restart postgresql@15
    ```
 
-2. **配置SSL证书**
+2. **Redis 连接失败**
    ```bash
-   # 将SSL证书放到 nginx/ssl/ 目录
-   mkdir -p nginx/ssl
-   # 修改 nginx/nginx.conf 启用HTTPS
+   # 检查 Redis 状态
+   redis-cli ping
+   
+   # 重启 Redis
+   brew services restart redis
    ```
 
-3. **启动服务**
+3. **TA-Lib 安装失败**
    ```bash
-   docker-compose -f docker-compose.prod.yml up -d
+   # 重新安装 TA-Lib
+   brew reinstall ta-lib
+   pip install --upgrade --force-reinstall TA-Lib
    ```
 
-### 监控和维护
+4. **权限问题**
+   ```bash
+   # 给脚本添加执行权限
+   chmod +x *.sh scripts/*.sh
+   ```
+
+### 日志查看
 
 ```bash
-# 查看服务状态
-docker-compose ps
+# 应用日志
+tail -f logs/app.log
 
-# 查看日志
-docker-compose logs -f backend
+# Celery 日志
+tail -f logs/celery.log
 
-# 重启服务
-docker-compose restart backend
-
-# 更新服务
-docker-compose pull
-docker-compose up -d
+# Docker 日志
+docker-compose logs -f api
 ```
 
-## 🔒 安全注意事项
-
-1. **修改默认密钥**: 生产环境必须修改 `SECRET_KEY`
-2. **数据库安全**: 使用强密码，限制访问权限
-3. **API限流**: 配置合适的请求频率限制
-4. **HTTPS**: 生产环境启用SSL证书
-5. **防火墙**: 只开放必要的端口
-
-## 📝 更新日志
-
-### v1.0.0 (2024-01-01)
-- 初始版本发布
-- 完整的股票数据查询功能
-- 技术分析指标计算
-- 九转选股功能
-- 用户认证和自选股管理
-
-## 🤝 贡献指南
+## 🤝 贡献
 
 1. Fork 项目
 2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
@@ -361,16 +254,16 @@ docker-compose up -d
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 📞 联系方式
+## 📞 支持
 
-- 项目地址: [GitHub Repository]
-- 问题反馈: [GitHub Issues]
-- 邮箱: your-email@example.com
+如有问题或建议，请：
 
-## 🙏 致谢
+1. 查看 [FAQ](docs/FAQ.md)
+2. 提交 [Issue](issues)
+3. 联系维护者
 
-- [Tushare](https://tushare.pro/) - 专业的金融数据接口
-- [AKShare](https://github.com/akfamily/akshare) - 开源财经数据接口
-- [FastAPI](https://fastapi.tiangolo.com/) - 现代化的Python Web框架
+---
+
+**注意**: 使用本系统前请确保已获得相应的数据源访问权限（如 Tushare Token）。
