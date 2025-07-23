@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>九转序列选股及四天持股交易系统</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部标题 -->
+        <header class="header">
+            <h1 class="title">九转序列选股及四天持股交易系统</h1>
+            <p class="subtitle">红6买入,绿红不买, 红9上引线高点卖出,平头不卖,绿9收盘几天后出现红3卖入!</p>
+            <div class="datetime" id="datetime">2025年7月22日 16:00:59</div>
+        </header>
+
+        <!-- 功能按钮区 -->
+        <section class="action-buttons">
+            <div class="button-group">
+                <button class="btn btn-primary">买入</button>
+                <button class="btn btn-secondary">卖出</button>
+                <button class="btn btn-info">创业板</button>
+                <button class="btn btn-warning">科创板</button>
+                <button class="btn btn-success">北交所</button>
+                <button class="btn btn-info">自选股</button>
+                <button class="btn btn-secondary">操作数据</button>
+                <button class="btn btn-warning">龙虎榜</button>
+                <button class="btn btn-info">涨跌幅新数据</button>
+            </div>
+            
+            <div class="operation-buttons">
+                <button class="btn btn-success">立即刷新数据</button>
+                <button class="btn btn-danger">买卖信号清洗</button>
+                <button class="btn btn-success">更新指数数据</button>
+                <button class="btn btn-danger">红5卖</button>
+                <button class="btn btn-success">绿9买</button>
+                <button class="btn btn-secondary">取消清洗</button>
+                <input type="text" class="search-input" placeholder="请输入股票代码">
+                <span class="status online">当前状态: 2025-07-22 17:00:00 09:59:00</span>
+            </div>
+        </section>
+
+        <!-- 市场指数区 -->
+        <section class="market-indices">
+            <div class="index-card">
+                <h3>上证指数</h3>
+                <div class="price">3503.78</div>
+                <div class="change negative">-1.22 (-0.03%)</div>
+                <div class="volume">成交额: 5724.19亿</div>
+            </div>
+            <div class="index-card">
+                <h3>深证成指</h3>
+                <div class="price">11007.49</div>
+                <div class="change positive">+83.85 (+0.89%)</div>
+                <div class="volume">成交额: 9696.74亿</div>
+            </div>
+            <div class="index-card">
+                <h3>创业板指</h3>
+                <div class="price">2296.88</div>
+                <div class="change positive">+19.73 (+0.87%)</div>
+                <div class="volume">成交额: 4440.17亿</div>
+            </div>
+            <div class="index-card">
+                <h3>科创板</h3>
+                <div class="price">1007.89</div>
+                <div class="change positive">+0.37 (+0.04%)</div>
+                <div class="volume">成交额: 268.07亿</div>
+            </div>
+        </section>
+
+        <!-- 数字货币区 -->
+        <section class="crypto-section">
+            <div class="crypto-grid">
+                <div class="crypto-card">
+                    <span class="crypto-symbol">₿ BTC</span>
+                    <div class="crypto-price">$119296.18</div>
+                    <div class="crypto-change positive">+625.08 (+0.53%)</div>
+                </div>
+                <div class="crypto-card">
+                    <span class="crypto-symbol">Ξ ETH</span>
+                    <div class="crypto-price">$3803.94</div>
+                    <div class="crypto-change positive">+30.12 (+0.80%)</div>
+                </div>
+                <div class="crypto-card">
+                    <span class="crypto-symbol">◎ SOL</span>
+                    <div class="crypto-price">$191.26</div>
+                    <div class="crypto-change positive">+8.84 (+4.85%)</div>
+                </div>
+                <div class="crypto-card">
+                    <span class="crypto-symbol">✕ XRP</span>
+                    <div class="crypto-price">$3.57</div>
+                    <div class="crypto-change positive">+0.08 (+1.99%)</div>
+                </div>
+                <div class="crypto-card">
+                    <span class="crypto-symbol">🟡 BNB</span>
+                    <div class="crypto-price">$762.90</div>
+                    <div class="crypto-change negative">+11.88 (-1.58%)</div>
+                </div>
+                <div class="crypto-card">
+                    <span class="crypto-symbol">🐕 DOGE</span>
+                    <div class="crypto-price">$0.275110</div>
+                    <div class="crypto-change positive">+0.020950 (+8.24%)</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 股票筛选表格 -->
+        <section class="stock-table-section">
+            <h2>创业板股票列表</h2>
+            <div class="filter-section">
+                <div class="filter-row">
+                    <label>筛选条件</label>
+                </div>
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label>股价(元)</label>
+                        <input type="number" placeholder="最小" class="filter-input">
+                        <span>-</span>
+                        <input type="number" placeholder="最大" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label>涨跌幅</label>
+                        <input type="number" placeholder="最小" class="filter-input">
+                        <span>-</span>
+                        <input type="number" placeholder="最大" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label>入选天数(天)</label>
+                        <input type="number" placeholder="最小" class="filter-input">
+                        <span>-</span>
+                        <input type="number" placeholder="最大" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label>净资产收益率(%)</label>
+                        <input type="number" placeholder="最小" class="filter-input">
+                        <span>-</span>
+                        <input type="number" placeholder="最大" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label>净利润增长率(%)</label>
+                        <input type="number" placeholder="最小" class="filter-input">
+                        <span>-</span>
+                        <input type="number" placeholder="最大" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label>净资产收益率(%)</label>
+                        <input type="number" placeholder="最小" class="filter-input">
+                        <span>-</span>
+                        <input type="number" placeholder="最大" class="filter-input">
+                    </div>
+                    <button class="btn btn-primary">应用筛选</button>
+                    <button class="btn btn-secondary">清除筛选</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table class="stock-table" id="stockTable">
+                    <thead>
+                        <tr>
+                            <th>股票代码</th>
+                            <th>股票名称</th>
+                            <th>所属行业</th>
+                            <th>当天涨幅(%)</th>
+                            <th>最新价格</th>
+                            <th>换手率(%)</th>
+                            <th>量比</th>
+                            <th>市盈率(PE)</th>
+                            <th>成交额(万元)</th>
+                            <th>净资产收益率</th>
+                            <th>净利润增长率</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>300004.SZ</td>
+                            <td>南风股份</td>
+                            <td>专用设备</td>
+                            <td class="positive">+3.55%</td>
+                            <td>¥23.58</td>
+                            <td>1.20</td>
+                            <td>0.89</td>
+                            <td>27.91</td>
+                            <td>2.04</td>
+                            <td>245.01</td>
+                            <td>1364.30%</td>
+                        </tr>
+                        <!-- 更多股票数据将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
