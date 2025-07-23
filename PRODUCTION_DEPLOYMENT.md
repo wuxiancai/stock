@@ -6,21 +6,25 @@
 
 ## 🚀 快速部署（推荐）
 
-### Ubuntu 系统一键部署
+### Ubuntu系统一键部署
 
+**只需要一个命令**：
 ```bash
-# Ubuntu系统专用一键部署脚本
+chmod +x deploy_ubuntu.sh
 ./deploy_ubuntu.sh
 ```
 
-这个脚本会自动完成：
-- ✅ 安装所有系统依赖
+该脚本已集成所有功能，会自动完成：
+- ✅ 安装系统依赖（包括TA-Lib开发库）
+- ✅ 自动修复talib-binary等依赖问题
 - ✅ 配置PostgreSQL和Redis
-- ✅ 创建虚拟环境和安装Python依赖
+- ✅ 创建Python虚拟环境
+- ✅ 智能安装Python依赖
 - ✅ 配置Nginx反向代理
 - ✅ 配置Supervisor进程管理
 - ✅ 设置防火墙规则
 - ✅ 启动所有服务
+- ✅ 验证安装结果
 
 ## 部署方案对比
 
@@ -305,7 +309,27 @@ server {
 
 ### 8.1 Ubuntu系统常见问题
 
-#### 问题1: systemd服务启动失败
+#### 问题1: talib-binary安装失败
+```
+ERROR: Could not find a version that satisfies the requirement talib-binary
+ERROR: No matching distribution found for talib-binary
+```
+
+**解决方案**:
+这个问题已经在 `deploy_ubuntu.sh` 脚本中自动解决了。脚本会：
+1. 自动安装 `libta-lib-dev` 系统依赖
+2. 清理冲突的 `talib-binary` 包
+3. 安装正确的 `TA-Lib` 包
+4. 如果失败，自动从源码编译
+
+如果仍有问题，可以手动执行：
+```bash
+sudo apt-get install libta-lib-dev pkg-config
+pip uninstall talib-binary
+pip install TA-Lib
+```
+
+#### 问题2: systemd服务启动失败
 ```
 Failed to locate executable /home/ubuntu/...
 ```

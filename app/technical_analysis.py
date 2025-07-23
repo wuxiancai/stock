@@ -1,11 +1,18 @@
 """
-技术指标计算模块
-包含九转序列、TD Sequential等技术分析指标
+技术分析模块
+提供各种技术指标计算功能
 """
-
 import pandas as pd
 import numpy as np
-import talib
+
+# TA-Lib导入处理
+try:
+    import talib
+    TALIB_AVAILABLE = True
+except ImportError:
+    TALIB_AVAILABLE = False
+    print("警告: TA-Lib未安装，技术分析功能将受限")
+
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 from loguru import logger
@@ -25,69 +32,140 @@ class TechnicalIndicators:
     @staticmethod
     def calculate_ma(data: pd.Series, period: int) -> pd.Series:
         """计算移动平均线"""
-        return talib.SMA(data.values, timeperiod=period)
+        if TALIB_AVAILABLE:
+            return pd.Series(talib.SMA(data.values, timeperiod=period), index=data.index)
+        else:
+            # 使用pandas实现
+            return data.rolling(window=period).mean()
     
     @staticmethod
     def calculate_ema(data: pd.Series, period: int) -> pd.Series:
         """计算指数移动平均线"""
-        return talib.EMA(data.values, timeperiod=period)
+        if TALIB_AVAILABLE:
+            return pd.Series(talib.EMA(data.values, timeperiod=period), index=data.index)
+        else:
+            # 使用pandas实现
+            return data.ewm(span=period).mean()
     
     @staticmethod
     def calculate_macd(data: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> Dict[str, pd.Series]:
-        """计算MACD指标"""
+    """计算MACD指标"""
+    if TALIB_AVAILABLE:
         macd, macdsignal, macdhist = talib.MACD(data.values, fastperiod=fast, slowperiod=slow, signalperiod=signal)
         return {
             'macd': pd.Series(macd, index=data.index),
             'signal': pd.Series(macdsignal, index=data.index),
             'histogram': pd.Series(macdhist, index=data.index)
         }
+    else:
+        # 使用pandas实现
+        ema_fast = data.ewm(span=fast).mean()
+        ema_slow = data.ewm(span=slow).mean()
+        macd = ema_fast - ema_slow
+        signal_line = macd.ewm(span=signal).mean()
+        histogram = macd - signal_line
+        return {
+            'macd': macd,
+            'signal': signal_line,
+            'histogram': histogram
+        }
     
     @staticmethod
     def calculate_rsi(data: pd.Series, period: int = 14) -> pd.Series:
-        """计算RSI指标"""
+    """计算RSI指标"""
+    if TALIB_AVAILABLE:
         return pd.Series(talib.RSI(data.values, timeperiod=period), index=data.index)
+    else:
+        # 使用pandas实现
+        delta = data.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
     
     @staticmethod
     def calculate_kdj(high: pd.Series, low: pd.Series, close: pd.Series, 
                      k_period: int = 9, d_period: int = 3, j_period: int = 3) -> Dict[str, pd.Series]:
         """计算KDJ指标"""
-        k, d = talib.STOCH(high.values, low.values, close.values, 
-                          fastk_period=k_period, slowk_period=d_period, slowd_period=d_period)
-        
-        k_series = pd.Series(k, index=close.index)
-        d_series = pd.Series(d, index=close.index)
-        j_series = 3 * k_series - 2 * d_series
-        
-        return {
-            'k': k_series,
-            'd': d_series,
-            'j': j_series
-        }
+        if TALIB_AVAILABLE:
+            k, d = talib.STOCH(high.values, low.values, close.values, 
+                              fastk_period=k_period, slowk_period=d_period, slowd_period=d_period)
+            
+            k_series = pd.Series(k, index=close.index)
+            d_series = pd.Series(d, index=close.index)
+            j_series = 3 * k_series - 2 * d_series
+            
+            return {
+                'k': k_series,
+                'd': d_series,
+                'j': j_series
+            }
+        else:
+            # 使用pandas实现
+            lowest_low = low.rolling(window=k_period).min()
+            highest_high = high.rolling(window=k_period).max()
+            rsv = (close - lowest_low) / (highest_high - lowest_low) * 100
+            k_series = rsv.ewm(alpha=1/d_period).mean()
+            d_series = k_series.ewm(alpha=1/j_period).mean()
+            j_series = 3 * k_series - 2 * d_series
+            return {
+                'k': k_series,
+                'd': d_series,
+                'j': j_series
+            }
     
     @staticmethod
-    def calculate_bollinger_bands(data: pd.Series, period: int = 20, std_dev: float = 2) -> Dict[str, pd.Series]:
-        """计算布林带"""
+    def calculate_bollinger_bands(data: pd.Series, period: int = 20, std_dev: int = 2) -> Dict[str, pd.Series]:
+    """计算布林带"""
+    if TALIB_AVAILABLE:
         upper, middle, lower = talib.BBANDS(data.values, timeperiod=period, nbdevup=std_dev, nbdevdn=std_dev)
-        
         return {
             'upper': pd.Series(upper, index=data.index),
             'middle': pd.Series(middle, index=data.index),
             'lower': pd.Series(lower, index=data.index)
         }
+    else:
+        # 使用pandas实现
+        middle = data.rolling(window=period).mean()
+        std = data.rolling(window=period).std()
+        upper = middle + (std * std_dev)
+        lower = middle - (std * std_dev)
+        return {
+            'upper': upper,
+            'middle': middle,
+            'lower': lower
+        }
     
     @staticmethod
     def calculate_volume_indicators(volume: pd.Series, close: pd.Series) -> Dict[str, pd.Series]:
         """计算成交量指标"""
-        # OBV - 能量潮
-        obv = talib.OBV(close.values, volume.values)
-        
-        # AD - 累积/派发线
-        ad = talib.AD(close.values, close.values, close.values, volume.values)
-        
-        return {
-            'obv': pd.Series(obv, index=volume.index),
-            'ad': pd.Series(ad, index=volume.index)
-        }
+        if TALIB_AVAILABLE:
+            # OBV - 能量潮
+            obv = talib.OBV(close.values, volume.values)
+            
+            # AD - 累积/派发线
+            ad = talib.AD(close.values, close.values, close.values, volume.values)
+            
+            return {
+                'obv': pd.Series(obv, index=volume.index),
+                'ad': pd.Series(ad, index=volume.index)
+            }
+        else:
+            # 使用pandas实现OBV
+            price_change = close.diff()
+            obv = volume.copy()
+            obv[price_change < 0] = -volume[price_change < 0]
+            obv[price_change == 0] = 0
+            obv = obv.cumsum()
+            
+            # 简化的A/D Line实现
+            ad = volume.cumsum()
+            
+            return {
+                'obv': obv,
+                'ad': ad
+            }
 
 
 class NineTurnSequential:

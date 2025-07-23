@@ -60,8 +60,11 @@ sudo apt-get install -y \
     supervisor \
     build-essential \
     libpq-dev \
+    libta-lib-dev \
+    pkg-config \
     curl \
-    git
+    git \
+    wget
 
 # 3. 创建虚拟环境
 if [ ! -d "venv" ]; then
@@ -69,12 +72,120 @@ if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi
 
-# 4. 激活虚拟环境并安装依赖
-log_info "安装Python依赖..."
+# 4. 激活虚拟环境并修复依赖问题
+log_info "激活虚拟环境并处理依赖..."
 source venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt
-pip install gunicorn uvicorn[standard]
+
+# 清理可能有问题的包
+log_info "清理可能冲突的包..."
+pip uninstall -y talib-binary talib TA-Lib 2>/dev/null || true
+
+# 安装TA-Lib（技术分析库）
+log_info "安装TA-Lib技术分析库..."
+if ! pip install TA-Lib; then
+    log_warning "pip安装TA-Lib失败，尝试从源码编译..."
+    # 尝试从源码编译安装
+    cd /tmp
+    if [ ! -f "ta-lib-0.4.0-src.tar.gz" ]; then
+        wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+    fi
+    tar -xzf ta-lib-0.4.0-src.tar.gz
+    cd ta-lib/
+    ./configure --prefix=/usr
+    make
+    sudo make install
+    sudo ldconfig  # 更新库路径
+    cd $CURRENT_DIR
+    pip install TA-Lib
+fi
+
+# 创建Ubuntu专用requirements文件（如果不存在）
+if [ ! -f "requirements.ubuntu.txt" ]; then
+    log_info "创建Ubuntu专用依赖文件..."
+    cat > requirements.ubuntu.txt << 'EOF'
+# Ubuntu系统专用依赖文件
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+sqlalchemy
+alembic
+psycopg2-binary
+asyncpg
+redis
+aioredis
+celery
+flower
+pandas
+numpy
+tushare
+akshare
+httpx
+aiohttp
+requests
+python-dotenv
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
+email-validator
+loguru
+prometheus-client
+pytest
+pytest-asyncio
+pytest-cov
+black
+isort
+flake8
+mypy
+websockets
+python-socketio
+pytz
+python-dateutil
+marshmallow
+dynaconf
+cryptography
+bcrypt
+click
+rich
+typer
+gunicorn
+EOF
+fi
+
+# 安装Python依赖
+log_info "安装Python依赖..."
+pip install -r requirements.ubuntu.txt
+
+# 验证关键包安装
+log_info "验证关键包安装..."
+python3 -c "
+import sys
+failed = []
+success = []
+
+packages = [
+    ('pandas', 'pandas'),
+    ('numpy', 'numpy'),
+    ('fastapi', 'fastapi'),
+    ('sqlalchemy', 'sqlalchemy'),
+    ('redis', 'redis'),
+    ('tushare', 'tushare'),
+    ('akshare', 'akshare'),
+    ('talib', 'TA-Lib')
+]
+
+for module, name in packages:
+    try:
+        __import__(module)
+        success.append(name)
+    except ImportError:
+        failed.append(name)
+
+print('✅ 成功安装:', ', '.join(success))
+if failed:
+    print('⚠️ 可选包未安装:', ', '.join(failed))
+"
 
 # 5. 配置PostgreSQL
 log_info "配置PostgreSQL数据库..."
