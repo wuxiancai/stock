@@ -60,11 +60,39 @@ sudo apt-get install -y \
     supervisor \
     build-essential \
     libpq-dev \
-    libta-lib-dev \
     pkg-config \
     curl \
     git \
-    wget
+    wget \
+    make \
+    gcc \
+    g++
+
+# 手动编译安装TA-Lib库（因为Ubuntu软件源中没有libta-lib-dev）
+log_info "编译安装TA-Lib库..."
+cd /tmp
+if [ ! -f "ta-lib-0.4.0-src.tar.gz" ]; then
+    log_info "下载TA-Lib源码..."
+    wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
+fi
+
+if [ ! -d "ta-lib" ]; then
+    log_info "解压TA-Lib源码..."
+    tar -xzf ta-lib-0.4.0-src.tar.gz
+fi
+
+cd ta-lib/
+log_info "配置和编译TA-Lib..."
+./configure --prefix=/usr/local
+make
+sudo make install
+sudo ldconfig  # 更新库路径
+
+# 设置环境变量
+export TA_LIBRARY_PATH=/usr/local/lib
+export TA_INCLUDE_PATH=/usr/local/include
+
+cd $CURRENT_DIR
 
 # 3. 创建虚拟环境
 if [ ! -d "venv" ]; then
@@ -81,23 +109,12 @@ pip install --upgrade pip
 log_info "清理可能冲突的包..."
 pip uninstall -y talib-binary talib TA-Lib 2>/dev/null || true
 
-# 安装TA-Lib（技术分析库）
-log_info "安装TA-Lib技术分析库..."
+# 安装TA-Lib Python包
+log_info "安装TA-Lib Python包..."
+export TA_LIBRARY_PATH=/usr/local/lib
+export TA_INCLUDE_PATH=/usr/local/include
 if ! pip install TA-Lib; then
-    log_warning "pip安装TA-Lib失败，尝试从源码编译..."
-    # 尝试从源码编译安装
-    cd /tmp
-    if [ ! -f "ta-lib-0.4.0-src.tar.gz" ]; then
-        wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz
-    fi
-    tar -xzf ta-lib-0.4.0-src.tar.gz
-    cd ta-lib/
-    ./configure --prefix=/usr
-    make
-    sudo make install
-    sudo ldconfig  # 更新库路径
-    cd $CURRENT_DIR
-    pip install TA-Lib
+    log_error "TA-Lib安装失败，但系统会继续运行（技术分析功能将使用Pandas实现）"
 fi
 
 # 创建Ubuntu专用requirements文件（如果不存在）
