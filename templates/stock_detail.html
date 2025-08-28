@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ stock_name }} - {{ stock_code }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-chart-line me-2"></i>股票行情系统
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('index') }}">
+                    <i class="fas fa-home me-1"></i>返回首页
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- 股票基本信息 -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    
+                    {% if stock_name %}
+                        {{ stock_name }} - {{ stock_code }}
+                    {% else %}
+                        {{ stock_code }}
+                    {% endif %}
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if latest_data %}
+                <!-- 合并显示所有指标在一行 -->
+                <div class="row" style="font-size: 0.85em;">
+                    <div class="col-1 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">最新价格</small>
+                            <strong class="{% if (latest_data.pct_chg or 0) > 0 %}text-danger{% elif (latest_data.pct_chg or 0) < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                ¥{{ "%.2f"|format(latest_data.close or 0) }}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-1 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">涨跌额</small>
+                            <strong class="{% if (latest_data.change or 0) > 0 %}text-danger{% elif (latest_data.change or 0) < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                {% if (latest_data.change or 0) > 0 %}+{% endif %}{{ "%.2f"|format(latest_data.change or 0) }}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-1 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">涨跌幅</small>
+                            <strong class="{% if (latest_data.pct_chg or 0) > 0 %}text-danger{% elif (latest_data.pct_chg or 0) < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                {% if (latest_data.pct_chg or 0) > 0 %}+{% endif %}{{ "%.2f"|format(latest_data.pct_chg or 0) }}%
+                            </strong>
+                        </div>
+                    </div>
+                    {% if additional_metrics %}
+                    <div class="col-1 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">成交额</small>
+                            <strong class="text-info">
+                                {{ additional_metrics.amount or "--" }}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-1 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">量比</small>
+                            <strong class="text-info">
+                                {{ additional_metrics.volume_ratio or "--" }}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-1 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">换手率</small>
+                            <strong class="text-info">
+                                {{ additional_metrics.turnover_rate or "--" }}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-1 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">市盈率(PE)</small>
+                            <strong class="text-info">
+                                {% if (additional_metrics.pe or 0) > 0 %}
+                                    {{ "%.2f"|format(additional_metrics.pe) }}
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-1 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">市净率(PB)</small>
+                            <strong class="text-info">
+                                {% if (additional_metrics.pb or 0) > 0 %}
+                                    {{ "%.2f"|format(additional_metrics.pb) }}
+                                {% else %}
+                                    --
+                                {% endif %}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-2 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">总市值</small>
+                            <strong class="text-info">
+                                {{ additional_metrics.total_market_value or "--" }}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-1 px-1">
+                        <div class="text-center">
+                            <small class="text-muted d-block">交易日期</small>
+                            <strong class="text-secondary">
+                                {{ latest_data.trade_date[4:6] }}-{{ latest_data.trade_date[6:8] }}
+                            </strong>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="text-center text-muted">暂无最新数据</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 历史行情数据 -->
+        <div class="card" style="display: none;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    历史行情数据
+                </h5>
+                <span class="badge bg-secondary">{{ history|length }} 条记录</span>
+            </div>
+            <div class="card-body">
+                {% if history %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>交易日期</th>
+                                <th>开盘价</th>
+                                <th>最高价</th>
+                                <th>最低价</th>
+                                <th>收盘价</th>
+                                <th>昨收价</th>
+                                <th>涨跌额</th>
+                                <th>涨跌幅(%)</th>
+                                <th>成交额(千元)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in history %}
+                            <tr>
+                                <td>{{ data.trade_date[:4] }}-{{ data.trade_date[4:6] }}-{{ data.trade_date[6:8] }}</td>
+                                <td class="number">{{ "%.2f"|format(data.open or 0) }}</td>
+                                <td class="number">{{ "%.2f"|format(data.high or 0) }}</td>
+                                <td class="number">{{ "%.2f"|format(data.low or 0) }}</td>
+                                <td class="number"><strong>{{ "%.2f"|format(data.close or 0) }}</strong></td>
+                                <td class="number">{{ "%.2f"|format(data.pre_close or 0) }}</td>
+                                <td class="number {% if (data.change or 0) > 0 %}text-danger{% elif (data.change or 0) < 0 %}text-success{% endif %}">
+                                    {% if (data.change or 0) > 0 %}+{% endif %}{{ "%.2f"|format(data.change or 0) }}
+                                </td>
+                                <td class="number {% if (data.pct_chg or 0) > 0 %}text-danger{% elif (data.pct_chg or 0) < 0 %}text-success{% endif %}">
+                                    {% if (data.pct_chg or 0) > 0 %}+{% endif %}{{ "%.2f"|format(data.pct_chg or 0) }}%
+                                </td>
+                                <td class="number">{{ "%.0f"|format(data.amount or 0)|replace(".0", "") }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>暂无历史数据</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 资金流向数据 -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>资金流向数据</h5>
+            </div>
+            <div class="card-body">
+                {% if moneyflow %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover moneyflow-table">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>交易日期</th>
+                                <th>超大单买入</th>
+                                <th>超大单卖出</th>
+                                <th>超大单净额</th>
+                                <th>大单买入</th>
+                                <th>大单卖出</th>
+                                <th>大单净额</th>
+                                <th>中单买入</th>
+                                <th>中单卖出</th>
+                                <th>中单净额</th>
+                                <th>小单买入</th>
+                                <th>小单卖出</th>
+                                <th>小单净额</th>
+                                <th>主力净流入</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in moneyflow %}
+                            <tr>
+                                <td>{{ data.trade_date[:4] }}-{{ data.trade_date[4:6] }}-{{ data.trade_date[6:8] }}</td>
+                                <td class="number">
+                                    {% set amount = data.buy_elg_amount or 0 %}
+                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number">
+                                    {% set amount = data.sell_elg_amount or 0 %}
+                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number {% if ((data.buy_elg_amount or 0) - (data.sell_elg_amount or 0)) > 0 %}text-danger{% elif ((data.buy_elg_amount or 0) - (data.sell_elg_amount or 0)) < 0 %}text-success{% endif %}">
+                                    {% set amount = (data.buy_elg_amount or 0) - (data.sell_elg_amount or 0) %}
+                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number">
+                                    {% set amount = data.buy_lg_amount or 0 %}
+                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number">
+                                    {% set amount = data.sell_lg_amount or 0 %}
+                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number {% if ((data.buy_lg_amount or 0) - (data.sell_lg_amount or 0)) > 0 %}text-danger{% elif ((data.buy_lg_amount or 0) - (data.sell_lg_amount or 0)) < 0 %}text-success{% endif %}">
+                                    {% set amount = (data.buy_lg_amount or 0) - (data.sell_lg_amount or 0) %}
+                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number">
+                                    {% set amount = data.buy_md_amount or 0 %}
+                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number">
+                                    {% set amount = data.sell_md_amount or 0 %}
+                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number {% if ((data.buy_md_amount or 0) - (data.sell_md_amount or 0)) > 0 %}text-danger{% elif ((data.buy_md_amount or 0) - (data.sell_md_amount or 0)) < 0 %}text-success{% endif %}">
+                                    {% set amount = (data.buy_md_amount or 0) - (data.sell_md_amount or 0) %}
+                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number">
+                                    {% set amount = data.buy_sm_amount or 0 %}
+                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number">
+                                    {% set amount = data.sell_sm_amount or 0 %}
+                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number {% if ((data.buy_sm_amount or 0) - (data.sell_sm_amount or 0)) > 0 %}text-danger{% elif ((data.buy_sm_amount or 0) - (data.sell_sm_amount or 0)) < 0 %}text-success{% endif %}">
+                                    {% set amount = (data.buy_sm_amount or 0) - (data.sell_sm_amount or 0) %}
+                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                                <td class="number {% if (data.net_mf_amount or 0) > 0 %}text-danger{% elif (data.net_mf_amount or 0) < 0 %}text-success{% endif %}">
+                                    {% set amount = data.net_mf_amount or 0 %}
+                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-inbox fa-3x mb-3"></i>
+                    <p>暂无资金流向数据</p>
+                </div>
+                {% endif %}
+            </div>
+         </div>
+
+         <!-- K线图 -->
+         <div class="card mt-4">
+             <div class="card-header">
+                 <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>日K线图</h5>
+             </div>
+             <div class="card-body">
+                 <div id="klineChart" style="width: 100%; height: 800px;"></div>
+             </div>
+         </div>
+  </div>
+
+  <!-- 隐藏的数据容器 -->
+  <script type="application/json" id="history-data">{{ history|tojson|safe }}</script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <script>
+      // K线图数据
+      const historyData = JSON.parse(document.getElementById('history-data').textContent);
+      const klineData = historyData.map(function(data) {
+          return {
+              date: data.trade_date.substring(0,4) + '-' + data.trade_date.substring(4,6) + '-' + data.trade_date.substring(6,8),
+              open: parseFloat(data.open || 0),
+              close: parseFloat(data.close || 0),
+              high: parseFloat(data.high || 0),
+              low: parseFloat(data.low || 0),
+              volume: parseFloat(data.vol || 0),
+              amount: parseFloat(data.amount || 0),
+              change: parseFloat(data.change || 0),
+              pct_chg: parseFloat(data.pct_chg || 0)
+          };
+      });
+
+      // 技术指标计算函数
+      function calculateEMA(data, period) {
+          const ema = [];
+          const multiplier = 2 / (period + 1);
+          ema[0] = data[0];
+          for (let i = 1; i < data.length; i++) {
+              ema[i] = (data[i] * multiplier) + (ema[i - 1] * (1 - multiplier));
+          }
+          return ema;
+      }
+
+      function calculateMACD(closes) {
+          const ema12 = calculateEMA(closes, 12);
+          const ema26 = calculateEMA(closes, 26);
+          const dif = ema12.map((val, i) => val - ema26[i]);
+          const dea = calculateEMA(dif, 9);
+          const macd = dif.map((val, i) => (val - dea[i]) * 2);
+          return { dif, dea, macd };
+      }
+
+      function calculateKDJ(highs, lows, closes, period = 9) {
+          const k = [], d = [], j = [];
+          for (let i = 0; i < closes.length; i++) {
+              const start = Math.max(0, i - period + 1);
+              const periodHighs = highs.slice(start, i + 1);
+              const periodLows = lows.slice(start, i + 1);
+              const highestHigh = Math.max(...periodHighs);
+              const lowestLow = Math.min(...periodLows);
+              const rsv = highestHigh === lowestLow ? 50 : ((closes[i] - lowestLow) / (highestHigh - lowestLow)) * 100;
+              
+              if (i === 0) {
+                  k[i] = 50;
+                  d[i] = 50;
+              } else {
+                  k[i] = (2/3) * k[i-1] + (1/3) * rsv;
+                  d[i] = (2/3) * d[i-1] + (1/3) * k[i];
+              }
+              j[i] = 3 * k[i] - 2 * d[i];
+          }
+          return { k, d, j };
+      }
+
+      function calculateRSI(closes, period = 14) {
+          const rsi = [];
+          for (let i = 0; i < closes.length; i++) {
+              if (i < period) {
+                  rsi[i] = 50;
+                  continue;
+              }
+              let gains = 0, losses = 0;
+              for (let j = i - period + 1; j <= i; j++) {
+                  const change = closes[j] - closes[j - 1];
+                  if (change > 0) gains += change;
+                  else losses -= change;
+              }
+              const avgGain = gains / period;
+              const avgLoss = losses / period;
+              rsi[i] = avgLoss === 0 ? 100 : 100 - (100 / (1 + (avgGain / avgLoss)));
+          }
+          return rsi;
+      }
+
+      // BOLL指标计算函数
+      function calculateBOLL(closes, period = 20, multiplier = 2) {
+          const upper = [];
+          const middle = [];
+          const lower = [];
+          
+          for (let i = 0; i < closes.length; i++) {
+              if (i < period - 1) {
+                  upper[i] = null;
+                  middle[i] = null;
+                  lower[i] = null;
+                  continue;
+              }
+              
+              // 计算移动平均线（中轨）
+              let sum = 0;
+              for (let j = i - period + 1; j <= i; j++) {
+                  sum += closes[j];
+              }
+              const ma = sum / period;
+              middle[i] = ma;
+              
+              // 计算标准差
+              let variance = 0;
+              for (let j = i - period + 1; j <= i; j++) {
+                  variance += Math.pow(closes[j] - ma, 2);
+              }
+              const stdDev = Math.sqrt(variance / period);
+              
+              // 计算上轨和下轨
+              upper[i] = ma + multiplier * stdDev;
+              lower[i] = ma - multiplier * stdDev;
+          }
+          
+          return { upper, middle, lower };
+      }
+
+      // 九转序列法计算函数
+      function calculateTDSequential(closes) {
+          const buySequence = [];
+          const sellSequence = [];
+          let buyCount = 0;
+          let sellCount = 0;
+          
+          for (let i = 0; i < closes.length; i++) {
+              if (i < 4) {
+                  buySequence[i] = null;
+                  sellSequence[i] = null;
+                  continue;
+              }
+              
+              // 买入序列：当前收盘价 > 4天前收盘价
+              if (closes[i] > closes[i - 4]) {
+                  buyCount++;
+                  sellCount = 0;
+                  buySequence[i] = buyCount <= 9 ? buyCount : null;
+                  sellSequence[i] = null;
+              }
+              // 卖出序列：当前收盘价 < 4天前收盘价
+              else if (closes[i] < closes[i - 4]) {
+                  sellCount++;
+                  buyCount = 0;
+                  sellSequence[i] = sellCount <= 9 ? sellCount : null;
+                  buySequence[i] = null;
+              }
+              // 既不满足买入也不满足卖出条件
+              else {
+                  buyCount = 0;
+                  sellCount = 0;
+                  buySequence[i] = null;
+                  sellSequence[i] = null;
+              }
+          }
+          
+          return { buySequence, sellSequence };
+      }
+
+          // 初始化K线图
+         function initKlineChart() {
+             const chartDom = document.getElementById('klineChart');
+             const myChart = echarts.init(chartDom);
+
+             // 准备数据
+             const dates = klineData.map(item => item.date).reverse();
+             const values = klineData.map(item => [item.open, item.close, item.low, item.high]).reverse();
+             const volumes = klineData.map(item => item.volume).reverse();
+             const closes = klineData.map(item => item.close).reverse();
+             const highs = klineData.map(item => item.high).reverse();
+             const lows = klineData.map(item => item.low).reverse();
+
+             // 计算技术指标
+             const macdData = calculateMACD(closes);
+             const kdjData = calculateKDJ(highs, lows, closes);
+             const rsiData = calculateRSI(closes);
+             const tdSequentialData = calculateTDSequential(closes);
+             const bollData = calculateBOLL(closes);
+
+             const option = {
+                 title: {
+                     text: '{{ stock_name }}({{ stock_code }}) 日K线图',
+                     left: 'center'
+                 },
+                 tooltip: {
+                     trigger: 'axis',
+                     axisPointer: {
+                         type: 'cross'
+                     },
+                     formatter: function(params) {
+                         const dataIndex = params[0].dataIndex;
+                         const data = klineData[klineData.length - 1 - dataIndex];
+                         const buySeq = tdSequentialData.buySequence[dataIndex];
+                         const sellSeq = tdSequentialData.sellSequence[dataIndex];
+                         let tdInfo = '';
+                         if (buySeq !== null) {
+                             tdInfo = `<br/>九转序列(买): <span style="color: #FF0000; font-weight: bold;">${buySeq}</span>`;
+                         } else if (sellSeq !== null) {
+                             tdInfo = `<br/>九转序列(卖): <span style="color: #00AA00; font-weight: bold;">${sellSeq}</span>`;
+                         }
+                         return `
+                             <div style="text-align: left;">
+                                 <strong>${data.date}</strong><br/>
+                                 开盘价: ${data.open.toFixed(2)}<br/>
+                                 收盘价: ${data.close.toFixed(2)}<br/>
+                                 最高价: ${data.high.toFixed(2)}<br/>
+                                 最低价: ${data.low.toFixed(2)}<br/>
+                                 涨跌额: ${data.change > 0 ? '+' : ''}${data.change.toFixed(2)}<br/>
+                                 涨跌幅: ${data.pct_chg > 0 ? '+' : ''}${data.pct_chg.toFixed(2)}%<br/>
+                                 成交量: ${(data.volume / 10000).toFixed(2)}万手<br/>
+                                 成交额: ${(data.amount / 10000).toFixed(2)}万元${tdInfo}
+                             </div>
+                         `;
+                     }
+                 },
+                 legend: {
+                     data: ['K线', '成交量', 'DIF', 'DEA', 'MACD', 'K', 'D', 'J', 'RSI', '九转序列', 'BOLL上轨', 'BOLL中轨', 'BOLL下轨'],
+                     top: 30
+                 },
+                 grid: [
+                     {
+                         left: '10%',
+                         right: '8%',
+                         height: '35%'
+                     },
+                     {
+                         left: '10%',
+                         right: '8%',
+                         top: '40%',
+                         height: '10%'
+                     },
+                     {
+                         left: '10%',
+                         right: '8%',
+                         top: '55%',
+                         height: '12%'
+                     },
+                     {
+                         left: '10%',
+                         right: '8%',
+                         top: '72%',
+                         height: '12%'
+                     },
+                     {
+                         left: '10%',
+                         right: '8%',
+                         top: '89%',
+                         height: '8%'
+                     }
+                 ],
+                 graphic: [
+                     {
+                         type: 'text',
+                         left: '10%',
+                         top: '55%',
+                         style: {
+                             text: 'MACD',
+                             fontSize: 12,
+                             fontWeight: 'bold',
+                             fill: '#666'
+                         }
+                     },
+                     {
+                         type: 'text',
+                         left: '20%',
+                         top: '55%',
+                         style: {
+                             text: function() {
+                                 const lastIndex = macdData.dif.length - 1;
+                                 if (lastIndex >= 0) {
+                                     const dif = macdData.dif[lastIndex]?.toFixed(4) || '0.0000';
+                                     const dea = macdData.dea[lastIndex]?.toFixed(4) || '0.0000';
+                                     const macd = macdData.macd[lastIndex]?.toFixed(4) || '0.0000';
+                                     return `DIF: ${dif}  DEA: ${dea}  MACD: ${macd}`;
+                                 }
+                                 return 'DIF: --  DEA: --  MACD: --';
+                             }(),
+                             fontSize: 10,
+                             fill: '#999'
+                         }
+                     },
+                     {
+                         type: 'text',
+                         left: '10%',
+                         top: '72%',
+                         style: {
+                             text: 'KDJ',
+                             fontSize: 12,
+                             fontWeight: 'bold',
+                             fill: '#666'
+                         }
+                     },
+                     {
+                         type: 'text',
+                         left: '20%',
+                         top: '72%',
+                         style: {
+                             text: function() {
+                                 const lastIndex = kdjData.k.length - 1;
+                                 if (lastIndex >= 0) {
+                                     const k = kdjData.k[lastIndex]?.toFixed(2) || '0.00';
+                                     const d = kdjData.d[lastIndex]?.toFixed(2) || '0.00';
+                                     const j = kdjData.j[lastIndex]?.toFixed(2) || '0.00';
+                                     return `K: ${k}  D: ${d}  J: ${j}`;
+                                 }
+                                 return 'K: --  D: --  J: --';
+                             }(),
+                             fontSize: 10,
+                             fill: '#999'
+                         }
+                     },
+                     {
+                         type: 'text',
+                         left: '10%',
+                         top: '89%',
+                         style: {
+                             text: 'RSI',
+                             fontSize: 12,
+                             fontWeight: 'bold',
+                             fill: '#666'
+                         }
+                     },
+                     {
+                         type: 'text',
+                         left: '20%',
+                         top: '89%',
+                         style: {
+                             text: function() {
+                                 const lastIndex = rsiData.length - 1;
+                                 if (lastIndex >= 0) {
+                                     const rsi = rsiData[lastIndex]?.toFixed(2) || '0.00';
+                                     return `RSI: ${rsi}`;
+                                 }
+                                 return 'RSI: --';
+                             }(),
+                             fontSize: 10,
+                             fill: '#999'
+                         }
+                     }
+                 ],
+                 xAxis: [
+                     {
+                         type: 'category',
+                         data: dates,
+                         scale: true,
+                         boundaryGap: false,
+                         axisLine: { onZero: false },
+                         splitLine: { show: false },
+                         axisLabel: { show: false },
+                         min: 'dataMin',
+                         max: 'dataMax'
+                     },
+                     {
+                         type: 'category',
+                         gridIndex: 1,
+                         data: dates,
+                         scale: true,
+                         boundaryGap: false,
+                         axisLine: { onZero: false },
+                         axisTick: { show: false },
+                         splitLine: { show: false },
+                         axisLabel: { show: false },
+                         min: 'dataMin',
+                         max: 'dataMax'
+                     },
+                     {
+                         type: 'category',
+                         gridIndex: 2,
+                         data: dates,
+                         scale: true,
+                         boundaryGap: false,
+                         axisLine: { onZero: false },
+                         axisTick: { show: false },
+                         splitLine: { show: false },
+                         axisLabel: { show: false },
+                         min: 'dataMin',
+                         max: 'dataMax'
+                     },
+                     {
+                         type: 'category',
+                         gridIndex: 3,
+                         data: dates,
+                         scale: true,
+                         boundaryGap: false,
+                         axisLine: { onZero: false },
+                         axisTick: { show: false },
+                         splitLine: { show: false },
+                         axisLabel: { show: false },
+                         min: 'dataMin',
+                         max: 'dataMax'
+                     },
+                     {
+                         type: 'category',
+                         gridIndex: 4,
+                         data: dates,
+                         scale: true,
+                         boundaryGap: false,
+                         axisLine: { onZero: false },
+                         axisTick: { show: true },
+                         splitLine: { show: false },
+                         min: 'dataMin',
+                         max: 'dataMax'
+                     }
+                 ],
+                 yAxis: [
+                     {
+                         scale: true,
+                         splitArea: {
+                             show: true
+                         }
+                     },
+                     {
+                         scale: true,
+                         gridIndex: 1,
+                         splitNumber: 2,
+                         axisLabel: { show: false },
+                         axisLine: { show: false },
+                         axisTick: { show: false },
+                         splitLine: { show: false }
+                     },
+                     {
+                         scale: true,
+                         gridIndex: 2,
+                         splitNumber: 2,
+                         axisLabel: { show: false },
+                         axisLine: { show: false },
+                         axisTick: { show: false },
+                         splitLine: { show: false }
+                     },
+                     {
+                         scale: true,
+                         gridIndex: 3,
+                         splitNumber: 2,
+                         axisLabel: { show: false },
+                         axisLine: { show: false },
+                         axisTick: { show: false },
+                         splitLine: { show: false }
+                     },
+                     {
+                         scale: true,
+                         gridIndex: 4,
+                         splitNumber: 2,
+                         axisLabel: { show: false },
+                         axisLine: { show: false },
+                         axisTick: { show: false },
+                         splitLine: { show: false }
+                     }
+                 ],
+                 dataZoom: [
+                     {
+                         type: 'inside',
+                         xAxisIndex: [0, 1, 2, 3, 4],
+                         start: 0,
+                         end: 100
+                     },
+                     {
+                         show: true,
+                         xAxisIndex: [0, 1, 2, 3, 4],
+                         type: 'slider',
+                         bottom: '2%',
+                         start: 0,
+                         end: 100
+                     }
+                 ],
+                 series: [
+                     {
+                         name: 'K线',
+                         type: 'candlestick',
+                         data: values,
+                         itemStyle: {
+                             color: '#ec0000',
+                             color0: '#00da3c',
+                             borderColor: '#8A0000',
+                             borderColor0: '#008F28'
+                         },
+                         markPoint: {
+                             data: [
+                                 {
+                                     type: 'max',
+                                     valueDim: 'highest',
+                                     symbol: 'pin',
+                                     symbolSize: 50,
+                                     itemStyle: {
+                                         color: '#FF0000'
+                                     },
+                                     label: {
+                                         show: true,
+                                         formatter: function(params) {
+                                             return '最高: ' + params.value.toFixed(2);
+                                         },
+                                         position: 'top',
+                                         fontSize: 10,
+                                         color: '#FF0000'
+                                     }
+                                 },
+                                 {
+                                     type: 'min',
+                                     valueDim: 'lowest',
+                                     symbol: 'pin',
+                                     symbolSize: 50,
+                                     itemStyle: {
+                                         color: '#00AA00'
+                                     },
+                                     label: {
+                                         show: true,
+                                         formatter: function(params) {
+                                             return '最低: ' + params.value.toFixed(2);
+                                         },
+                                         position: 'bottom',
+                                         fontSize: 10,
+                                         color: '#00AA00'
+                                     }
+                                 }
+                             ].concat(
+                                 // 九转序列买入信号（红色数字，显示在蜡烛图上方）
+                                 tdSequentialData.buySequence.map((count, index) => {
+                                     if (count !== null) {
+                                         return {
+                                             coord: [index, values[index][3]], // 使用最高价位置
+                                             value: count,
+                                             symbol: 'circle',
+                                             symbolSize: 20,
+                                             itemStyle: {
+                                                 color: 'transparent',
+                                                 borderColor: 'transparent'
+                                             },
+                                             label: {
+                                                 show: true,
+                                                 formatter: count.toString(),
+                                                 position: 'top',
+                                                 fontSize: 12,
+                                                 fontWeight: 'bold',
+                                                 color: '#FF0000',
+                                                 offset: [0, -10]
+                                             }
+                                         };
+                                     }
+                                     return null;
+                                 }).filter(item => item !== null),
+                                 // 九转序列卖出信号（绿色数字，显示在蜡烛图下方）
+                                 tdSequentialData.sellSequence.map((count, index) => {
+                                     if (count !== null) {
+                                         return {
+                                             coord: [index, values[index][2]], // 使用最低价位置
+                                             value: count,
+                                             symbol: 'circle',
+                                             symbolSize: 20,
+                                             itemStyle: {
+                                                 color: 'transparent',
+                                                 borderColor: 'transparent'
+                                             },
+                                             label: {
+                                                 show: true,
+                                                 formatter: count.toString(),
+                                                 position: 'bottom',
+                                                 fontSize: 12,
+                                                 fontWeight: 'bold',
+                                                 color: '#00AA00',
+                                                 offset: [0, 10]
+                                             }
+                                         };
+                                     }
+                                     return null;
+                                 }).filter(item => item !== null)
+                             )
+                         }
+                     },
+                     {
+                         name: 'BOLL上轨',
+                         type: 'line',
+                         data: bollData.upper,
+                         lineStyle: { color: '#0066FF', width: 1 },
+                         symbol: 'none'
+                     },
+                     {
+                         name: 'BOLL中轨',
+                         type: 'line',
+                         data: bollData.middle,
+                         lineStyle: { color: '#0066FF', width: 1 },
+                         symbol: 'none'
+                     },
+                     {
+                         name: 'BOLL下轨',
+                         type: 'line',
+                         data: bollData.lower,
+                         lineStyle: { color: '#0066FF', width: 1 },
+                         symbol: 'none'
+                     },
+                     {
+                         name: '成交量',
+                         type: 'bar',
+                         xAxisIndex: 1,
+                         yAxisIndex: 1,
+                         data: volumes,
+                         itemStyle: {
+                             color: function(params) {
+                                 const dataIndex = params.dataIndex;
+                                 const klineItem = values[dataIndex];
+                                 return klineItem[1] > klineItem[0] ? '#ec0000' : '#00da3c';
+                             }
+                         }
+                     },
+                     {
+                         name: 'DIF',
+                         type: 'line',
+                         xAxisIndex: 2,
+                         yAxisIndex: 2,
+                         data: macdData.dif,
+                         lineStyle: { color: '#FF6600', width: 1 },
+                         symbol: 'none'
+                     },
+                     {
+                         name: 'DEA',
+                         type: 'line',
+                         xAxisIndex: 2,
+                         yAxisIndex: 2,
+                         data: macdData.dea,
+                         lineStyle: { color: '#0066FF', width: 1 },
+                         symbol: 'none'
+                     },
+                     {
+                         name: 'MACD',
+                         type: 'bar',
+                         xAxisIndex: 2,
+                         yAxisIndex: 2,
+                         data: macdData.macd,
+                         itemStyle: {
+                             color: function(params) {
+                                 return params.value >= 0 ? '#ec0000' : '#00da3c';
+                             }
+                         }
+                     },
+                     {
+                         name: 'K',
+                         type: 'line',
+                         xAxisIndex: 3,
+                         yAxisIndex: 3,
+                         data: kdjData.k,
+                         lineStyle: { color: '#FF6600', width: 1 },
+                         symbol: 'none',
+                         markLine: {
+                             data: [
+                                 {
+                                     yAxis: 80,
+                                     lineStyle: {
+                                         color: '#FF0000',
+                                         type: 'dashed',
+                                         width: 1
+                                     },
+                                     label: {
+                                         show: true,
+                                         position: 'end',
+                                         formatter: '超买'
+                                     }
+                                 },
+                                 {
+                                     yAxis: 20,
+                                     lineStyle: {
+                                         color: '#00FF00',
+                                         type: 'dashed',
+                                         width: 1
+                                     },
+                                     label: {
+                                         show: true,
+                                         position: 'end',
+                                         formatter: '超卖'
+                                     }
+                                 }
+                             ]
+                         }
+                     },
+                     {
+                         name: 'D',
+                         type: 'line',
+                         xAxisIndex: 3,
+                         yAxisIndex: 3,
+                         data: kdjData.d,
+                         lineStyle: { color: '#0066FF', width: 1 },
+                         symbol: 'none'
+                     },
+                     {
+                         name: 'J',
+                         type: 'line',
+                         xAxisIndex: 3,
+                         yAxisIndex: 3,
+                         data: kdjData.j,
+                         lineStyle: { color: '#9900FF', width: 1 },
+                         symbol: 'none'
+                     },
+                     {
+                         name: 'RSI',
+                         type: 'line',
+                         xAxisIndex: 4,
+                         yAxisIndex: 4,
+                         data: rsiData,
+                         lineStyle: { color: '#FF6600', width: 1 },
+                         symbol: 'none',
+                         markLine: {
+                             data: [
+                                 {
+                                     yAxis: 80,
+                                     lineStyle: {
+                                         color: '#FF0000',
+                                         type: 'dashed',
+                                         width: 1
+                                     },
+                                     label: {
+                                         show: true,
+                                         position: 'end',
+                                         formatter: '超买'
+                                     }
+                                 },
+                                 {
+                                     yAxis: 20,
+                                     lineStyle: {
+                                         color: '#00FF00',
+                                         type: 'dashed',
+                                         width: 1
+                                     },
+                                     label: {
+                                         show: true,
+                                         position: 'end',
+                                         formatter: '超卖'
+                                     }
+                                 }
+                             ]
+                         }
+                     }
+                 ]
+             };
+
+             myChart.setOption(option);
+
+             // 响应式调整
+             window.addEventListener('resize', function() {
+                 myChart.resize();
+             });
+         }
+
+         // 页面加载完成后初始化图表
+         document.addEventListener('DOMContentLoaded', function() {
+             if (klineData.length > 0) {
+                 initKlineChart();
+             }
+         });
+     </script>
+ </body>
+ </html>

@@ -1,0 +1,21 @@
+[Unit]
+Description=Stock System Service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=%i
+Group=%i
+WorkingDirectory=%h/stock
+Environment=PATH=%h/stock-venv/bin
+Environment="APP_ENV=production"
+ExecStart=%h/stock-venv/bin/python app.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=stock-system
+
+[Install]
+WantedBy=multi-user.target
