@@ -723,7 +723,8 @@ function startSyncProgressMonitoring(button, originalHtml, progressContainer) {
             eventSource.close();
             
             if (progress.success) {
-                showToast('A股数据同步成功！\n' + progress.message, 'success');
+                // 显示详细的同步结果弹窗
+                showSyncResultModal(progress);
                 // 同步完成后重新加载数据
                 setTimeout(() => {
                     loadStockData();
@@ -1055,6 +1056,201 @@ function renderIndexTable() {
             if (amountElement) amountElement.textContent = '-';
         }
     });
+}
+
+// 显示同步结果弹窗
+function showSyncResultModal(progress) {
+    const integrityReport = progress.integrity_report || {};
+    const isComplete = integrityReport.is_complete !== false;
+    const completionRate = integrityReport.completion_rate || 0;
+    
+    // 创建弹窗HTML
+    const modalHtml = `
+        <div class="modal fade" id="syncResultModal" tabindex="-1" aria-labelledby="syncResultModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header ${isComplete ? 'bg-success text-white' : 'bg-warning text-dark'}">
+                        <h5 class="modal-title" id="syncResultModalLabel">
+                            <i class="fas ${isComplete ? 'fa-check-circle' : 'fa-exclamation-triangle'}"></i>
+                            ${isComplete ? '同步完成' : '同步完成（存在问题）'}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="card border-primary">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title text-primary">同步数据量</h6>
+                                        <h4 class="text-primary">${progress.total_count || 0}</h4>
+                                        <small class="text-muted">条记录</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-${isComplete ? 'success' : 'warning'}">
+                                    <div class="card-body text-center">
+                                        <h6 class="card-title text-${isComplete ? 'success' : 'warning'}">完整性检查</h6>
+                                        <h4 class="text-${isComplete ? 'success' : 'warning'}">${completionRate.toFixed(1)}%</h4>
+                                        <small class="text-muted">${isComplete ? '数据完整' : '存在缺失'}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${generateSyncDetailsHtml(progress, integrityReport)}
+                        
+                        ${generateIntegrityDetailsHtml(integrityReport)}
+                    </div>
+                    <div class="modal-footer">
+                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                         ${!isComplete ? '<button type="button" class="btn btn-warning" onclick="retryIncompleteSync()">重新同步缺失数据</button>' : ''}
+                         ${generateRecentDataSyncButton(integrityReport)}
+                     </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 移除已存在的弹窗
+    const existingModal = document.getElementById('syncResultModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // 添加新弹窗到页面
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // 显示弹窗
+    const modal = new bootstrap.Modal(document.getElementById('syncResultModal'));
+    modal.show();
+    
+    // 弹窗关闭后移除DOM元素
+    document.getElementById('syncResultModal').addEventListener('hidden.bs.modal', function() {
+        this.remove();
+    });
+}
+
+// 生成同步详情HTML
+function generateSyncDetailsHtml(progress, integrityReport) {
+    if (!progress.results || progress.results.length === 0) {
+        return '<div class="alert alert-info">无详细同步信息</div>';
+    }
+    
+    let html = '<div class="mb-3"><h6>同步详情</h6><div class="table-responsive"><table class="table table-sm table-striped">';
+    html += '<thead><tr><th>日期</th><th>同步数量</th><th>完整性状态</th></tr></thead><tbody>';
+    
+    progress.results.forEach(result => {
+        const parts = result.split(': ');
+        if (parts.length === 2) {
+            const date = parts[0];
+            const count = parts[1];
+            const dateReport = integrityReport.details && integrityReport.details[date];
+            const isDateComplete = dateReport ? dateReport.actual > 0 : true;
+            
+            html += `<tr>
+                <td>${date}</td>
+                <td>${count}</td>
+                <td><span class="badge bg-${isDateComplete ? 'success' : 'warning'}">${isDateComplete ? '完整' : '不完整'}</span></td>
+            </tr>`;
+        }
+    });
+    
+    html += '</tbody></table></div></div>';
+    return html;
+}
+
+// 生成完整性检查详情HTML
+function generateIntegrityDetailsHtml(integrityReport) {
+    if (!integrityReport || integrityReport.error) {
+        return `<div class="alert alert-warning">完整性检查失败: ${integrityReport.error || '未知错误'}</div>`;
+    }
+    
+    let html = '<div class="mb-3"><h6>数据完整性分析</h6>';
+    
+    // 缺失日期
+    if (integrityReport.missing_dates && integrityReport.missing_dates.length > 0) {
+        html += '<div class="alert alert-danger">';
+        html += '<strong>缺失数据的日期:</strong><br>';
+        html += integrityReport.missing_dates.join(', ');
+        html += '</div>';
+    }
+    
+    // 不完整数据
+    if (integrityReport.incomplete_data && integrityReport.incomplete_data.length > 0) {
+        html += '<div class="alert alert-warning">';
+        html += '<strong>数据不完整的日期:</strong><br>';
+        integrityReport.incomplete_data.forEach(item => {
+            html += `${item.date}: 完成率 ${item.completion_rate}% (${item.actual}/${item.expected})<br>`;
+        });
+        html += '</div>';
+    }
+    
+    // 如果数据完整
+    if (integrityReport.is_complete) {
+        html += '<div class="alert alert-success">';
+        html += '<i class="fas fa-check-circle"></i> 所有数据同步完整，无缺失或异常！';
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// 生成最近交易日同步按钮
+function generateRecentDataSyncButton(integrityReport) {
+    if (!integrityReport || !integrityReport.incomplete_data) {
+        return '';
+    }
+    
+    // 检查是否有最近20个交易日的不完整数据
+    const recentIncompleteData = integrityReport.incomplete_data.filter(item => {
+        const itemDate = new Date(item.date.replace(/-(\d{2})-(\d{2})$/, '-$2-$1'));
+        const twentyDaysAgo = new Date();
+        twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
+        return itemDate >= twentyDaysAgo;
+    });
+    
+    if (recentIncompleteData.length > 0) {
+        const dateList = recentIncompleteData.map(item => item.date).join(',');
+        return `<button type="button" class="btn btn-danger" onclick="syncRecentIncompleteData('${dateList}')">同步最近${recentIncompleteData.length}个交易日缺失数据</button>`;
+    }
+    
+    return '';
+}
+
+// 同步最近不完整的数据
+function syncRecentIncompleteData(dateList) {
+    // 关闭当前弹窗
+    const modal = bootstrap.Modal.getInstance(document.getElementById('syncResultModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    const dates = dateList.split(',');
+    if (dates.length === 0) {
+        showToast('没有需要同步的日期', 'warning');
+        return;
+    }
+    
+    const startDate = dates[dates.length - 1]; // 最早的日期
+    const endDate = dates[0]; // 最晚的日期
+    
+    showToast(`正在同步最近${dates.length}个交易日的缺失数据...`, 'info');
+    syncAllAStockDataWithDateRange(startDate, endDate);
+}
+
+// 重新同步缺失数据
+function retryIncompleteSync() {
+    // 关闭当前弹窗
+    const modal = bootstrap.Modal.getInstance(document.getElementById('syncResultModal'));
+    if (modal) {
+        modal.hide();
+    }
+    
+    // 触发重新同步
+    showToast('正在重新同步缺失数据...', 'info');
+    syncAllAStockData();
 }
 
 // 打开九转序列法筛选器

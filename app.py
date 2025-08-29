@@ -1232,12 +1232,30 @@ def sync_all_a_stock_data_background(start_date=None, end_date=None):
             date_total = count1 + count2 + count3 + count4 + count5 + count6 + count7
             results.append(f'{sync_date}: {date_total}条')
         
+        update_sync_progress('检查数据完整性', sync_progress['total_steps'], f'正在验证同步数据...')
+        
+        # 进行数据完整性检查
+        expected_counts = {}
+        for i, sync_date in enumerate(sync_dates):
+            # 根据results计算每个日期的预期数据量
+            if i < len(results):
+                try:
+                    count_str = results[i].split(': ')[1].replace('条', '')
+                    expected_counts[sync_date] = int(count_str)
+                except:
+                    expected_counts[sync_date] = 0
+            else:
+                expected_counts[sync_date] = 0
+        
+        integrity_report = data_sync.check_data_integrity(sync_dates, expected_counts)
+        
         update_sync_progress('同步完成', sync_progress['total_steps'], f'成功同步 {total_count} 条数据')
         
         sync_progress['success'] = True
         sync_progress['message'] = f'成功同步 {total_count} 条A股数据'
         sync_progress['total_count'] = total_count
         sync_progress['results'] = results
+        sync_progress['integrity_report'] = integrity_report
         
     except Exception as e:
         sync_progress['success'] = False

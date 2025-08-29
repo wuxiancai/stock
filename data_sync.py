@@ -73,6 +73,98 @@ class DataSync:
         
         raise Exception(f"API调用失败，已重试 {self.max_retries} 次")
     
+    def check_data_integrity(self, sync_dates, expected_counts):
+        """检查数据完整性"""
+        try:
+            conn = self.get_db_connection()
+            integrity_report = {
+                'is_complete': True,
+                'missing_dates': [],
+                'incomplete_data': [],
+                'total_expected': sum(expected_counts.values()),
+                'total_actual': 0,
+                'details': {}
+            }
+            
+            for sync_date in sync_dates:
+                date_report = {
+                    'date': sync_date,
+                    'expected': expected_counts.get(sync_date, 0),
+                    'actual': 0,
+                    'tables': {}
+                }
+                
+                # 检查各个数据表的记录数
+                tables_to_check = [
+                    ('daily_data', '日线数据'),
+                    ('stock_basic_data', '基础信息'),
+                    ('margin_data', '融资融券'),
+                    ('moneyflow_data', '资金流向'),
+                    ('top_list_data', '龙虎榜明细'),
+                    ('top_inst_data', '龙虎榜机构'),
+                    ('daily_basic_data', '基础指标')
+                ]
+                
+                total_actual_for_date = 0
+                for table_name, table_desc in tables_to_check:
+                    try:
+                        count = conn.execute(
+                            f'SELECT COUNT(*) as count FROM {table_name} WHERE trade_date = ?',
+                            (sync_date,)
+                        ).fetchone()['count']
+                        
+                        date_report['tables'][table_name] = {
+                            'name': table_desc,
+                            'count': count
+                        }
+                        total_actual_for_date += count
+                        
+                    except Exception as e:
+                        logger.error(f"检查表 {table_name} 失败: {e}")
+                        date_report['tables'][table_name] = {
+                            'name': table_desc,
+                            'count': 0,
+                            'error': str(e)
+                        }
+                
+                date_report['actual'] = total_actual_for_date
+                integrity_report['total_actual'] += total_actual_for_date
+                integrity_report['details'][sync_date] = date_report
+                
+                # 检查是否有缺失数据
+                if total_actual_for_date == 0:
+                    integrity_report['missing_dates'].append(sync_date)
+                    integrity_report['is_complete'] = False
+                elif total_actual_for_date < expected_counts.get(sync_date, 0) * 0.8:  # 如果实际数据少于预期的80%
+                    integrity_report['incomplete_data'].append({
+                        'date': sync_date,
+                        'expected': expected_counts.get(sync_date, 0),
+                        'actual': total_actual_for_date,
+                        'completion_rate': round(total_actual_for_date / expected_counts.get(sync_date, 1) * 100, 2)
+                    })
+                    integrity_report['is_complete'] = False
+            
+            conn.close()
+            
+            # 计算总体完成率
+            if integrity_report['total_expected'] > 0:
+                integrity_report['completion_rate'] = round(
+                    integrity_report['total_actual'] / integrity_report['total_expected'] * 100, 2
+                )
+            else:
+                integrity_report['completion_rate'] = 100.0
+            
+            logger.info(f"数据完整性检查完成，完成率: {integrity_report['completion_rate']}%")
+            return integrity_report
+            
+        except Exception as e:
+            logger.error(f"数据完整性检查失败: {e}")
+            return {
+                'is_complete': False,
+                'error': str(e),
+                'completion_rate': 0.0
+            }
+    
     def get_stock_list(self):
         """获取A股股票列表"""
         try:
