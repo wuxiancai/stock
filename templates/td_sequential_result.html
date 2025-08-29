@@ -302,8 +302,8 @@
                         return value >= 1 ? value.toFixed(1) + '亿' : (value * 10000).toFixed(0) + '万';
                     })()}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); viewStockDetail('${stock.ts_code}')">
-                            <i class="fas fa-chart-line"></i> 详情
+                        <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); addToFavorites('${stock.ts_code}', '${stock.name}')" title="加入自选股">
+                            <i class="fas fa-star"></i> 加入自选股
                         </button>
                     </td>
                 `;
@@ -317,6 +317,33 @@
         function viewStockDetail(tsCode) {
             // 在新标签页打开股票详情页
             window.open(`/stock/${tsCode}`, '_blank');
+        }
+
+        // 加入自选股功能
+        async function addToFavorites(tsCode, stockName) {
+            try {
+                const response = await fetch('/api/favorites/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ts_code: tsCode,
+                        name: stockName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`${stockName} 已加入自选股`, 'success');
+                } else {
+                    showToast(data.message || '加入自选股失败', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding to favorites:', error);
+                showToast('加入自选股失败', 'error');
+            }
         }
 
         function refreshData() {

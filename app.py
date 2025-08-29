@@ -453,6 +453,18 @@ def init_database():
         )
     ''')
     
+    # 创建自选股表
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS favorite_stocks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts_code TEXT NOT NULL,
+            name TEXT,
+            added_date TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(ts_code)
+        )
+    ''')
+    
     # 创建索引提高查询性能
     conn.execute('CREATE INDEX IF NOT EXISTS idx_ts_code ON daily_data(ts_code)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_trade_date ON daily_data(trade_date)')
@@ -490,6 +502,10 @@ def init_database():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_daily_basic_ts_code ON daily_basic(ts_code)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_daily_basic_trade_date ON daily_basic(trade_date)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_daily_basic_ts_code_date ON daily_basic(ts_code, trade_date)')
+    
+    # 为自选股表创建索引
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_favorite_ts_code ON favorite_stocks(ts_code)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_favorite_added_date ON favorite_stocks(added_date)')
     
     # 创建统一分析表（用于快速数据分析）
     conn.execute('''
@@ -1483,6 +1499,234 @@ def get_status():
             'earliest_date': index_stats['index_earliest_date']
         }
     })
+
+# 自选股相关API
+@app.route('/favorites')
+def favorites_page():
+    """自选股页面"""
+    return render_template('favorites.html')
+
+@app.route('/api/favorites')
+def get_favorites():
+    """获取自选股列表"""
+    try:
+        conn = get_db_connection()
+        
+        # 获取自选股及其最新数据
+        query = '''
+            SELECT 
+                f.ts_code,
+                f.name,
+                f.added_date,
+                d.close,
+                d.pre_close,
+                d.change,
+                d.pct_chg,
+                d.vol,
+                d.amount,
+                d.trade_date,
+                b.industry,
+                b.area,
+                db.total_mv,
+                db.pe,
+                db.pb,
+                mf.net_mf_amount
+            FROM favorite_stocks f
+            LEFT JOIN (
+                SELECT ts_code, close, pre_close, change, pct_chg, vol, amount, trade_date,
+                       ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
+                FROM daily_data
+            ) d ON f.ts_code = d.ts_code AND d.rn = 1
+            LEFT JOIN stock_basic_info b ON f.ts_code = b.ts_code
+            LEFT JOIN (
+                SELECT ts_code, total_mv, pe, pb, trade_date,
+                       ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
+                FROM daily_basic
+            ) db ON f.ts_code = db.ts_code AND db.rn = 1
+            LEFT JOIN (
+                SELECT ts_code, net_mf_amount, trade_date,
+                       ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
+                FROM moneyflow_data
+            ) mf ON f.ts_code = mf.ts_code AND mf.rn = 1
+            ORDER BY f.added_date DESC
+        '''
+        
+        cursor = conn.execute(query)
+        favorites = []
+        
+        for row in cursor.fetchall():
+            # 格式化总市值
+            total_mv_formatted = ""
+            if row['total_mv']:
+                if row['total_mv'] >= 10000:
+                    total_mv_formatted = f"{row['total_mv'] / 10000:.2f} 亿"
+                else:
+                    total_mv_formatted = f"{row['total_mv']:.2f} 万"
+            
+            # 格式化净流入额
+            net_mf_formatted = ""
+            if row['net_mf_amount']:
+                if abs(row['net_mf_amount']) >= 10000:
+                    net_mf_formatted = f"{row['net_mf_amount'] / 10000:.2f} 亿"
+                else:
+                    net_mf_formatted = f"{row['net_mf_amount']:.2f} 万"
+            
+            # 计算九转序列
+            td_sequential = None
+            closes_data = conn.execute('''
+                SELECT close FROM daily_data 
+                WHERE ts_code = ? 
+                ORDER BY trade_date DESC 
+                LIMIT 90
+            ''', (row['ts_code'],)).fetchall()
+            
+            if len(closes_data) >= 5:
+                closes = [close_row['close'] for close_row in reversed(closes_data)]
+                td_sequential = calculate_td_sequential(closes)
+            
+            favorites.append({
+                'ts_code': row['ts_code'],
+                'name': row['name'],
+                'added_date': row['added_date'],
+                'close': row['close'],
+                'pre_close': row['pre_close'],
+                'change': row['change'],
+                'pct_chg': row['pct_chg'],
+                'vol': row['vol'],
+                'amount': row['amount'],
+                'trade_date': row['trade_date'],
+                'industry': row['industry'],
+                'area': row['area'],
+                'total_mv': total_mv_formatted,
+                'pe': row['pe'],
+                'pb': row['pb'],
+                'net_mf_amount': net_mf_formatted,
+                'td_sequential': td_sequential
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': favorites,
+            'total': len(favorites)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取自选股失败: {str(e)}'
+        }), 500
+
+@app.route('/api/favorites/add', methods=['POST'])
+def add_favorite():
+    """添加自选股"""
+    try:
+        data = request.get_json()
+        ts_code = data.get('ts_code')
+        
+        if not ts_code:
+            return jsonify({
+                'success': False,
+                'message': '股票代码不能为空'
+            }), 400
+        
+        conn = get_db_connection()
+        
+        # 获取股票名称
+        stock_info = conn.execute(
+            'SELECT name FROM stock_basic_info WHERE ts_code = ?',
+            (ts_code,)
+        ).fetchone()
+        
+        if not stock_info:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'message': '股票不存在'
+            }), 404
+        
+        # 检查是否已经添加
+        existing = conn.execute(
+            'SELECT id FROM favorite_stocks WHERE ts_code = ?',
+            (ts_code,)
+        ).fetchone()
+        
+        if existing:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'message': '该股票已在自选股中'
+            }), 409
+        
+        # 添加到自选股
+        today = datetime.now().strftime('%Y-%m-%d')
+        conn.execute(
+            'INSERT INTO favorite_stocks (ts_code, name, added_date) VALUES (?, ?, ?)',
+            (ts_code, stock_info['name'], today)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': '添加自选股成功'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'添加自选股失败: {str(e)}'
+        }), 500
+
+@app.route('/api/favorites/remove', methods=['POST'])
+def remove_favorite():
+    """移除自选股"""
+    try:
+        data = request.get_json()
+        ts_code = data.get('ts_code')
+        
+        if not ts_code:
+            return jsonify({
+                'success': False,
+                'message': '股票代码不能为空'
+            }), 400
+        
+        conn = get_db_connection()
+        
+        # 检查是否存在
+        existing = conn.execute(
+            'SELECT id FROM favorite_stocks WHERE ts_code = ?',
+            (ts_code,)
+        ).fetchone()
+        
+        if not existing:
+            conn.close()
+            return jsonify({
+                'success': False,
+                'message': '该股票不在自选股中'
+            }), 404
+        
+        # 从自选股中移除
+        conn.execute(
+            'DELETE FROM favorite_stocks WHERE ts_code = ?',
+            (ts_code,)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'message': '移除自选股成功'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'移除自选股失败: {str(e)}'
+        }), 500
 
 def check_and_kill_port(port):
     """检查端口是否被占用，如果被占用则强制杀死占用的进程"""

@@ -274,8 +274,8 @@ function renderStockTable() {
                 <td class="number">${formatAmount(stock.amount)}</td>
                 <td class="number">${formatTdSequential(stock.td_sequential)}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="showStockDetail('${stock.ts_code}')">
-                        <i class="fas fa-chart-line"></i>
+                    <button class="btn btn-sm btn-outline-success" onclick="addToFavorites('${stock.ts_code}', '${stock.name || stock.ts_code}')" title="加入自选股">
+                        <i class="fas fa-star"></i>
                     </button>
                 </td>
             </tr>
@@ -845,8 +845,8 @@ function formatVolume(vol) {
 function formatAmount(amount) {
     if (amount === null || amount === undefined) return '-';
     const value = parseFloat(amount);
-    if (value >= 100000) {
-        return (value / 100000).toFixed(1) + '亿';
+    if (value >= 1000000) {
+        return (value / 1000000).toFixed(1) + '亿';
     } else if (value >= 10000) {
         return (value / 10000).toFixed(1) + '万';
     }
@@ -1163,3 +1163,30 @@ function retryIncompleteSync() {
 }
 
 // 打开九转序列法筛选器
+
+// 加入自选股功能
+async function addToFavorites(tsCode, stockName) {
+    try {
+        const response = await fetch('/api/favorites/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                ts_code: tsCode,
+                name: stockName
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast(`${stockName} 已加入自选股`, 'success');
+        } else {
+            showToast(data.message || '加入自选股失败', 'error');
+        }
+    } catch (error) {
+        console.error('Error adding to favorites:', error);
+        showToast('加入自选股失败', 'error');
+    }
+}
