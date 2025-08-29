@@ -47,7 +47,7 @@
                             </strong>
                         </div>
                     </div>
-                    <div class="col-1 px-1">
+                    <div class="col-1 px-1" style="display: none;">
                         <div class="text-center">
                             <small class="text-muted d-block">涨跌额</small>
                             <strong class="{% if (latest_data.change or 0) > 0 %}text-danger{% elif (latest_data.change or 0) < 0 %}text-success{% else %}text-secondary{% endif %}">
@@ -153,11 +153,11 @@
                             <tr>
                                 <th>交易日期</th>
                                 <th>开盘价</th>
-                                <th>最高价</th>
-                                <th>最低价</th>
+                                <th style="display: none;">最高价</th>
+                                <th style="display: none;">最低价</th>
                                 <th>收盘价</th>
                                 <th>昨收价</th>
-                                <th>涨跌额</th>
+                                <th style="display: none;">涨跌额</th>
                                 <th>涨跌幅(%)</th>
                                 <th>成交额(千元)</th>
                             </tr>
@@ -167,11 +167,11 @@
                             <tr>
                                 <td>{{ data.trade_date[:4] }}-{{ data.trade_date[4:6] }}-{{ data.trade_date[6:8] }}</td>
                                 <td class="number">{{ "%.2f"|format(data.open or 0) }}</td>
-                                <td class="number">{{ "%.2f"|format(data.high or 0) }}</td>
-                                <td class="number">{{ "%.2f"|format(data.low or 0) }}</td>
+                                <td class="number" style="display: none;">{{ "%.2f"|format(data.high or 0) }}</td>
+                                <td class="number" style="display: none;">{{ "%.2f"|format(data.low or 0) }}</td>
                                 <td class="number"><strong>{{ "%.2f"|format(data.close or 0) }}</strong></td>
                                 <td class="number">{{ "%.2f"|format(data.pre_close or 0) }}</td>
-                                <td class="number {% if (data.change or 0) > 0 %}text-danger{% elif (data.change or 0) < 0 %}text-success{% endif %}">
+                                <td class="number {% if (data.change or 0) > 0 %}text-danger{% elif (data.change or 0) < 0 %}text-success{% endif %}" style="display: none;">
                                     {% if (data.change or 0) > 0 %}+{% endif %}{{ "%.2f"|format(data.change or 0) }}
                                 </td>
                                 <td class="number {% if (data.pct_chg or 0) > 0 %}text-danger{% elif (data.pct_chg or 0) < 0 %}text-success{% endif %}">
@@ -199,86 +199,66 @@
             </div>
             <div class="card-body">
                 {% if moneyflow %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover moneyflow-table">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>交易日期</th>
-                                <th>超大单买入</th>
-                                <th>超大单卖出</th>
-                                <th>超大单净额</th>
-                                <th>大单买入</th>
-                                <th>大单卖出</th>
-                                <th>大单净额</th>
-                                <th>中单买入</th>
-                                <th>中单卖出</th>
-                                <th>中单净额</th>
-                                <th>小单买入</th>
-                                <th>小单卖出</th>
-                                <th>小单净额</th>
-                                <th>主力净流入</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for data in moneyflow %}
-                            <tr>
-                                <td>{{ data.trade_date[:4] }}-{{ data.trade_date[4:6] }}-{{ data.trade_date[6:8] }}</td>
-                                <td class="number">
-                                    {% set amount = data.buy_elg_amount or 0 %}
-                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number">
-                                    {% set amount = data.sell_elg_amount or 0 %}
-                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number {% if ((data.buy_elg_amount or 0) - (data.sell_elg_amount or 0)) > 0 %}text-danger{% elif ((data.buy_elg_amount or 0) - (data.sell_elg_amount or 0)) < 0 %}text-success{% endif %}">
-                                    {% set amount = (data.buy_elg_amount or 0) - (data.sell_elg_amount or 0) %}
-                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number">
-                                    {% set amount = data.buy_lg_amount or 0 %}
-                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number">
-                                    {% set amount = data.sell_lg_amount or 0 %}
-                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number {% if ((data.buy_lg_amount or 0) - (data.sell_lg_amount or 0)) > 0 %}text-danger{% elif ((data.buy_lg_amount or 0) - (data.sell_lg_amount or 0)) < 0 %}text-success{% endif %}">
-                                    {% set amount = (data.buy_lg_amount or 0) - (data.sell_lg_amount or 0) %}
-                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number">
-                                    {% set amount = data.buy_md_amount or 0 %}
-                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number">
-                                    {% set amount = data.sell_md_amount or 0 %}
-                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number {% if ((data.buy_md_amount or 0) - (data.sell_md_amount or 0)) > 0 %}text-danger{% elif ((data.buy_md_amount or 0) - (data.sell_md_amount or 0)) < 0 %}text-success{% endif %}">
-                                    {% set amount = (data.buy_md_amount or 0) - (data.sell_md_amount or 0) %}
-                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number">
-                                    {% set amount = data.buy_sm_amount or 0 %}
-                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number">
-                                    {% set amount = data.sell_sm_amount or 0 %}
-                                    {% if amount >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number {% if ((data.buy_sm_amount or 0) - (data.sell_sm_amount or 0)) > 0 %}text-danger{% elif ((data.buy_sm_amount or 0) - (data.sell_sm_amount or 0)) < 0 %}text-success{% endif %}">
-                                    {% set amount = (data.buy_sm_amount or 0) - (data.sell_sm_amount or 0) %}
-                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                                <td class="number {% if (data.net_mf_amount or 0) > 0 %}text-danger{% elif (data.net_mf_amount or 0) < 0 %}text-success{% endif %}">
-                                    {% set amount = data.net_mf_amount or 0 %}
-                                    {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                {% set data = moneyflow[0] %}
+                
+                <!-- 资金流向数据一行显示 -->
+                <div class="row g-0 align-items-center">
+                    <!-- 主力净流入 -->
+                    <div class="col-auto">
+                        <div class="px-2 py-1 border rounded bg-light">
+                            <span class="text-muted me-1">主力净流入:</span>
+                            <span class="fw-bold {% set amount = data.net_mf_amount or 0 %}{% if amount > 0 %}text-danger{% elif amount < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                {% if amount > 0 %}+{% endif %}
+                                {% if amount|abs >= 10000 %}{{ "%.2f"|format(amount / 10000) }}亿{% else %}{{ "%.0f"|format(amount) }}万{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- 超大单净额 -->
+                    <div class="col-auto">
+                        <div class="px-2 py-1 border rounded">
+                            <span class="text-muted me-1">超大单:</span>
+                            <span class="fw-bold {% set net = (data.buy_elg_amount or 0) - (data.sell_elg_amount or 0) %}{% if net > 0 %}text-danger{% elif net < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                {% if net > 0 %}+{% endif %}
+                                {% if net|abs >= 10000 %}{{ "%.2f"|format(net / 10000) }}亿{% else %}{{ "%.0f"|format(net) }}万{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- 大单净额 -->
+                    <div class="col-auto">
+                        <div class="px-2 py-1 border rounded">
+                            <span class="text-muted me-1">大单:</span>
+                            <span class="fw-bold {% set net = (data.buy_lg_amount or 0) - (data.sell_lg_amount or 0) %}{% if net > 0 %}text-danger{% elif net < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                {% if net > 0 %}+{% endif %}
+                                {% if net|abs >= 10000 %}{{ "%.2f"|format(net / 10000) }}亿{% else %}{{ "%.0f"|format(net) }}万{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- 中单净额 -->
+                    <div class="col-auto">
+                        <div class="px-2 py-1 border rounded">
+                            <span class="text-muted me-1">中单:</span>
+                            <span class="fw-bold {% set net = (data.buy_md_amount or 0) - (data.sell_md_amount or 0) %}{% if net > 0 %}text-danger{% elif net < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                {% if net > 0 %}+{% endif %}
+                                {% if net|abs >= 10000 %}{{ "%.2f"|format(net / 10000) }}亿{% else %}{{ "%.0f"|format(net) }}万{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- 小单净额 -->
+                    <div class="col-auto">
+                        <div class="px-2 py-1 border rounded">
+                            <span class="text-muted me-1">小单:</span>
+                            <span class="fw-bold {% set net = (data.buy_sm_amount or 0) - (data.sell_sm_amount or 0) %}{% if net > 0 %}text-danger{% elif net < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                {% if net > 0 %}+{% endif %}
+                                {% if net|abs >= 10000 %}{{ "%.2f"|format(net / 10000) }}亿{% else %}{{ "%.0f"|format(net) }}万{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+
                 </div>
                 {% else %}
                 <div class="text-center text-muted py-5">
@@ -507,9 +487,6 @@
                                  <strong>${data.date}</strong><br/>
                                  开盘价: ${data.open.toFixed(2)}<br/>
                                  收盘价: ${data.close.toFixed(2)}<br/>
-                                 最高价: ${data.high.toFixed(2)}<br/>
-                                 最低价: ${data.low.toFixed(2)}<br/>
-                                 涨跌额: ${data.change > 0 ? '+' : ''}${data.change.toFixed(2)}<br/>
                                  涨跌幅: ${data.pct_chg > 0 ? '+' : ''}${data.pct_chg.toFixed(2)}%<br/>
                                  成交量: ${(data.volume / 10000).toFixed(2)}万手<br/>
                                  成交额: ${(data.amount / 10000).toFixed(2)}万元${tdInfo}

@@ -259,18 +259,18 @@ function renderStockTable() {
                 <td class="text-truncate" style="max-width: 60px;" title="${stock.area || '-'}">${stock.area || '-'}</td>
                 <td style="display: none;">${formatDate(stock.trade_date)}</td>
                 <td class="number">${formatPrice(stock.open)}</td>
-                <td class="number">${formatPrice(stock.high)}</td>
-                <td class="number">${formatPrice(stock.low)}</td>
+                <td class="number" style="display: none;">${formatPrice(stock.high)}</td>
+                <td class="number" style="display: none;">${formatPrice(stock.low)}</td>
                 <td class="number">${formatPrice(stock.close)}</td>
                 <td class="number">${formatPrice(stock.pre_close)}</td>
-                <td class="number ${changeClass}">${formatChange(stock.change)}</td>
+                <td class="number ${changeClass}" style="display: none;">${formatChange(stock.change)}</td>
                 <td class="number ${pctChgClass}">${formatPercent(stock.pct_chg)}</td>
                 <td class="number">${stock.turnover_rate ? stock.turnover_rate.toFixed(2) + '%' : '-'}</td>
                 <td class="number">${stock.volume_ratio ? stock.volume_ratio.toFixed(2) : '-'}</td>
                 <td class="number">${stock.pe ? stock.pe.toFixed(2) : '-'}</td>
                 <td class="number">${stock.pb ? stock.pb.toFixed(2) : '-'}</td>
-                <td class="number">${stock.total_mv ? (stock.total_mv / 100000000).toFixed(2) : '-'}</td>
-                <td class="number">${stock.net_mf_amount ? (stock.net_mf_amount / 10000).toFixed(2) : '-'}</td>
+                <td class="number">${stock.total_mv ? (stock.total_mv / 10000).toFixed(2) + '亿' : '-'}</td>
+                <td class="number">${stock.net_mf_amount ? (Math.abs(stock.net_mf_amount) >= 10000 ? (stock.net_mf_amount / 10000).toFixed(2) + '亿' : stock.net_mf_amount.toFixed(0) + '万') : '-'}</td>
                 <td class="number">${formatAmount(stock.amount)}</td>
                 <td class="number">${formatTdSequential(stock.td_sequential)}</td>
                 <td>

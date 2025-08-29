@@ -613,22 +613,33 @@ def stock_detail(ts_code):
         else:
             additional_metrics['turnover_rate'] = "--"
         
-        # 市盈率（从stock_basic表获取）
-        additional_metrics['pe'] = stock_info['pe'] or 0
+        # 市盈率（从daily_basic表获取）
+        pe_data = conn.execute(
+            'SELECT pe FROM daily_basic WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
+            (ts_code,)
+        ).fetchone()
+        additional_metrics['pe'] = pe_data['pe'] if pe_data and pe_data['pe'] else 0
         
-        # 市净率（从stock_basic表获取）
-        additional_metrics['pb'] = stock_info['pb'] or 0
+        # 市净率（从daily_basic表获取）
+        pb_data = conn.execute(
+            'SELECT pb FROM daily_basic WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
+            (ts_code,)
+        ).fetchone()
+        additional_metrics['pb'] = pb_data['pb'] if pb_data and pb_data['pb'] else 0
         
-        # 总市值（收盘价 * 总股本，股本单位是亿股，结果单位是万元）
-        if stock_info['total_share'] and stock_info['total_share'] > 0:
-            # 收盘价 * 总股本（亿股） = 亿元，再转换为万元
-            market_value_wan = (latest_data['close'] or 0) * stock_info['total_share'] * 10000
-            if market_value_wan >= 10000:  # 超过1亿（10000万）
-                additional_metrics['total_market_value'] = f"{market_value_wan / 10000:.1f} 亿"
+        # 总市值（从daily_basic表获取）
+        total_mv_data = conn.execute(
+            'SELECT total_mv FROM daily_basic WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
+            (ts_code,)
+        ).fetchone()
+        if total_mv_data and total_mv_data['total_mv']:
+            total_mv_wan = total_mv_data['total_mv']  # 单位已经是万元
+            if total_mv_wan >= 10000:  # 超过1亿（10000万）
+                additional_metrics['total_market_value'] = f"{total_mv_wan / 10000:.1f} 亿"
             else:
-                additional_metrics['total_market_value'] = f"{market_value_wan:.0f} 万"
+                additional_metrics['total_market_value'] = f"{total_mv_wan:.0f} 万"
         else:
-            additional_metrics['total_market_value'] = "0 万"
+            additional_metrics['total_market_value'] = "--"
     
     # 获取历史数据（最近120天用于显示）
     history_rows = conn.execute(
@@ -636,9 +647,9 @@ def stock_detail(ts_code):
         (ts_code,)
     ).fetchall()
     
-    # 获取资金流向数据（最近30天）
+    # 获取资金流向数据（最新一天）
     moneyflow_rows = conn.execute(
-        'SELECT * FROM moneyflow_data WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 30',
+        'SELECT * FROM moneyflow_data WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
         (ts_code,)
     ).fetchall()
     

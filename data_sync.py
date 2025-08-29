@@ -850,7 +850,7 @@ class DataSync:
                 SELECT 
                     d.ts_code, d.trade_date, 'stock' as data_type, b.name,
                     d.close, d.open, d.high, d.low, d.pre_close, d.change, d.pct_chg, d.vol, d.amount,
-                    b.industry, b.area, b.pe, b.pb, b.eps, b.bvps,
+                    b.industry, b.area, db.pe, db.pb, NULL as eps, NULL as bvps,
                     -- 计算量比：当日成交量 / 前5日平均成交量
                     CASE 
                         WHEN (
@@ -951,52 +951,52 @@ class DataSync:
             moneyflow_count = cursor.rowcount
             logger.info(f"更新资金流向数据: {moneyflow_count} 条")
             
-            # 5. 更新龙虎榜数据
-            toplist_query = '''
-                UPDATE unified_analysis_data 
-                SET net_amount = (
-                    SELECT t.net_amount 
-                    FROM top_list_data t 
-                    WHERE t.ts_code = unified_analysis_data.ts_code 
-                    AND t.trade_date = unified_analysis_data.trade_date
-                ),
-                turnover_rate = (
-                    SELECT t.turnover_rate 
-                    FROM top_list_data t 
-                    WHERE t.ts_code = unified_analysis_data.ts_code 
-                    AND t.trade_date = unified_analysis_data.trade_date
-                ),
-                reason = (
-                    SELECT t.reason 
-                    FROM top_list_data t 
-                    WHERE t.ts_code = unified_analysis_data.ts_code 
-                    AND t.trade_date = unified_analysis_data.trade_date
-                )
-                WHERE trade_date = ? AND data_type = 'stock'
-                AND EXISTS (
-                    SELECT 1 FROM top_list_data t 
-                    WHERE t.ts_code = unified_analysis_data.ts_code 
-                    AND t.trade_date = unified_analysis_data.trade_date
-                )
-            '''
-            cursor = conn.execute(toplist_query, (trade_date,))
-            toplist_count = cursor.rowcount
-            logger.info(f"更新龙虎榜数据: {toplist_count} 条")
+            # 5. 更新龙虎榜数据（暂时注释掉，因为top_list_data表不存在）
+            # toplist_query = '''
+            #     UPDATE unified_analysis_data 
+            #     SET net_amount = (
+            #         SELECT t.net_amount 
+            #         FROM top_list_data t 
+            #         WHERE t.ts_code = unified_analysis_data.ts_code 
+            #         AND t.trade_date = unified_analysis_data.trade_date
+            #     ),
+            #     turnover_rate = (
+            #         SELECT t.turnover_rate 
+            #         FROM top_list_data t 
+            #         WHERE t.ts_code = unified_analysis_data.ts_code 
+            #         AND t.trade_date = unified_analysis_data.trade_date
+            #     ),
+            #     reason = (
+            #         SELECT t.reason 
+            #         FROM top_list_data t 
+            #         WHERE t.ts_code = unified_analysis_data.ts_code 
+            #         AND t.trade_date = unified_analysis_data.trade_date
+            #     )
+            #     WHERE trade_date = ? AND data_type = 'stock'
+            #     AND EXISTS (
+            #         SELECT 1 FROM top_list_data t 
+            #         WHERE t.ts_code = unified_analysis_data.ts_code 
+            #         AND t.trade_date = unified_analysis_data.trade_date
+            #     )
+            # '''
+            # cursor = conn.execute(toplist_query, (trade_date,))
+            toplist_count = 0  # cursor.rowcount
+            logger.info(f"更新龙虎榜数据: {toplist_count} 条（已跳过，表不存在）")
             
-            # 6. 插入融资融券汇总数据（按交易所）
-            margin_query = '''
-                INSERT OR REPLACE INTO unified_analysis_data 
-                (ts_code, trade_date, data_type, name, rzye, rzmre, rzrqye)
-                SELECT 
-                    exchange_id as ts_code, trade_date, 'margin' as data_type, 
-                    exchange_id as name, rzye, rzmre, rzrqye
-                FROM margin_data
-                WHERE trade_date = ?
-            '''
-            cursor = conn.execute(margin_query, (trade_date,))
-            margin_count = cursor.rowcount
-            total_inserted += margin_count
-            logger.info(f"插入融资融券数据: {margin_count} 条")
+            # 6. 插入融资融券汇总数据（暂时注释掉，因为unified_analysis_data表没有相关字段）
+            # margin_query = '''
+            #     INSERT OR REPLACE INTO unified_analysis_data 
+            #     (ts_code, trade_date, data_type, name, rzye, rzmre, rzrqye)
+            #     SELECT 
+            #         exchange_id as ts_code, trade_date, 'margin' as data_type, 
+            #         exchange_id as name, rzye, rzmre, rzrqye
+            #     FROM margin_data
+            #     WHERE trade_date = ?
+            # '''
+            # cursor = conn.execute(margin_query, (trade_date,))
+            margin_count = 0  # cursor.rowcount
+            # total_inserted += margin_count
+            logger.info(f"插入融资融券数据: {margin_count} 条（已跳过，字段不存在）")
             
             # 更新时间戳
             conn.execute(
