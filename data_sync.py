@@ -26,10 +26,13 @@ class DataSync:
     def get_db_connection(self):
         """获取数据库连接"""
         conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
         return conn
     
     def _api_call_with_retry(self, api_func, *args, **kwargs):
         """带重试机制的API调用包装函数"""
+        api_name = getattr(api_func, '__name__', str(api_func))
+        
         for attempt in range(self.max_retries):
             try:
                 # 只有在遇到频率限制时才进行时间控制
@@ -48,30 +51,39 @@ class DataSync:
                 
                 # 成功调用后，重置频率限制标志
                 if self.rate_limited:
-                    logger.info("API调用成功，解除频率限制")
+                    logger.info(f"API调用成功 [{api_name}]，解除频率限制")
                     self.rate_limited = False
                 
                 return result
                 
             except Exception as e:
                 error_msg = str(e)
-                if "每分钟最多访问该接口" in error_msg or "访问频率" in error_msg or "抱歉，您每分钟最多访问" in error_msg:
-                    # 频率限制错误，启用频率控制
+                
+                # 检查各种限制类型
+                if ("每分钟最多访问该接口" in error_msg or 
+                    "访问频率" in error_msg or 
+                    "抱歉，您每分钟最多访问" in error_msg):
+                    # 分钟频率限制错误，启用频率控制
                     self.rate_limited = True
                     wait_time = 60 * (attempt + 1)  # 递增等待时间
-                    logger.warning(f"检测到API频率限制告警，启用时间限制控制，第{attempt+1}次重试，等待 {wait_time} 秒...")
+                    logger.warning(f"检测到API分钟频率限制告警 [{api_name}]，启用时间限制控制，第{attempt+1}次重试，等待 {wait_time} 秒...")
                     time.sleep(wait_time)
                     continue
+                elif "每天最多访问该接口" in error_msg:
+                    # 每日访问次数限制，无法通过等待解决
+                    logger.error(f"API每日访问次数限制 [{api_name}]: {error_msg}")
+                    logger.error(f"触发限制的API参数: args={args}, kwargs={kwargs}")
+                    raise Exception(f"API每日访问次数已达上限 [{api_name}]: {error_msg}")
                 else:
                     # 其他错误，记录并重试
-                    logger.error(f"API调用失败 (第{attempt+1}次尝试): {error_msg}")
+                    logger.error(f"API调用失败 [{api_name}] (第{attempt+1}次尝试): {error_msg}")
                     if attempt < self.max_retries - 1:
                         time.sleep(5 * (attempt + 1))  # 递增等待时间
                         continue
                     else:
                         raise e
         
-        raise Exception(f"API调用失败，已重试 {self.max_retries} 次")
+        raise Exception(f"API调用失败 [{api_name}]，已重试 {self.max_retries} 次")
     
     def check_data_integrity(self, sync_dates, expected_counts):
         """检查数据完整性"""
@@ -97,18 +109,25 @@ class DataSync:
                 # 检查各个数据表的记录数
                 tables_to_check = [
                     ('daily_data', '日线数据'),
-                    ('stock_basic_data', '基础信息'),
+                    ('stock_basic_info', '基础信息'),
                     ('moneyflow_data', '资金流向'),
-                    ('daily_basic_data', '基础指标')
+                    ('daily_basic', '基础指标')
                 ]
                 
                 total_actual_for_date = 0
                 for table_name, table_desc in tables_to_check:
                     try:
-                        count = conn.execute(
-                            f'SELECT COUNT(*) as count FROM {table_name} WHERE trade_date = ?',
-                            (sync_date,)
-                        ).fetchone()['count']
+                        if table_name == 'stock_basic_info':
+                            # 基础信息表没有trade_date字段，直接统计总数
+                            count = conn.execute(
+                                f'SELECT COUNT(*) as count FROM {table_name}'
+                            ).fetchone()['count']
+                        else:
+                            # 其他表按trade_date查询
+                            count = conn.execute(
+                                f'SELECT COUNT(*) as count FROM {table_name} WHERE trade_date = ?',
+                                (sync_date,)
+                            ).fetchone()['count']
                         
                         date_report['tables'][table_name] = {
                             'name': table_desc,
@@ -177,6 +196,28 @@ class DataSync:
         except Exception as e:
             logger.error(f"获取股票列表失败: {e}")
             return []
+    
+    def get_stock_basic_info(self):
+        """获取股票基础信息（基于stock_basic接口）"""
+        try:
+            # 使用带重试机制的API调用
+            df = self._api_call_with_retry(
+                self.pro.stock_basic,
+                exchange='',
+                list_status='L',
+                fields='ts_code,symbol,name,area,industry,fullname,enname,cnspell,market,exchange,curr_type,list_status,list_date,delist_date,is_hs,act_name,act_ent_type'
+            )
+            
+            if df.empty:
+                logger.warning("无股票基础信息")
+                return pd.DataFrame()
+            
+            logger.info(f"获取到 {len(df)} 条股票基础信息")
+            return df
+            
+        except Exception as e:
+            logger.error(f"获取股票基础信息失败: {e}")
+            return pd.DataFrame()
     
     def get_daily_data(self, ts_code, start_date=None, end_date=None):
         """获取单个股票的日线数据"""
@@ -391,26 +432,7 @@ class DataSync:
             logger.error(f"同步日期 {trade_date} 数据失败: {e}")
             return 0
     
-    def get_stock_basic_data(self, trade_date):
-        """获取指定交易日的股票基础信息"""
-        try:
-            # 使用带重试机制的API调用
-            df = self._api_call_with_retry(
-                self.pro.bak_basic,
-                trade_date=trade_date,
-                fields='trade_date,ts_code,name,industry,area,pe,float_share,total_share,total_assets,liquid_assets,fixed_assets,reserved,reserved_pershare,eps,bvps,pb,list_date,undp,per_undp,rev_yoy,profit_yoy,gpr,npr,holder_num'
-            )
-            
-            if df.empty:
-                logger.warning(f"日期 {trade_date} 无股票基础信息")
-                return pd.DataFrame()
-            
-            logger.info(f"获取到 {len(df)} 条股票基础信息")
-            return df
-            
-        except Exception as e:
-            logger.error(f"获取股票基础信息失败: {e}")
-            return pd.DataFrame()
+
     
     def get_daily_basic_data(self, trade_date):
         """获取指定交易日的每日基础指标数据（包含换手率等）"""
@@ -433,32 +455,46 @@ class DataSync:
             logger.error(f"获取每日基础指标数据失败: {e}")
             return pd.DataFrame()
     
-    def save_stock_basic_data(self, df):
-        """保存股票基础信息到数据库"""
+
+    
+    def save_stock_basic_info(self, df):
+        """保存股票基础信息到数据库（基于stock_basic接口）"""
         if df.empty:
+            logger.warning(f"无股票基础信息数据可保存")
             return 0
         
         try:
             conn = self.get_db_connection()
+            cursor = conn.cursor()
             
-            # 使用INSERT OR REPLACE避免重复数据
+            # 使用INSERT OR REPLACE来处理重复数据
             saved_count = 0
             for _, row in df.iterrows():
                 try:
-                    conn.execute('''
-                        INSERT OR REPLACE INTO stock_basic 
-                        (trade_date, ts_code, name, industry, area, pe, float_share, 
-                         total_share, total_assets, liquid_assets, fixed_assets, 
-                         reserved, reserved_pershare, eps, bvps, pb, list_date, 
-                         undp, per_undp, rev_yoy, profit_yoy, gpr, npr, holder_num)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    cursor.execute('''
+                        INSERT OR REPLACE INTO stock_basic_info (
+                            ts_code, symbol, name, area, industry, fullname, enname, cnspell,
+                            market, exchange, curr_type, list_status, list_date, delist_date,
+                            is_hs, act_name, act_ent_type, updated_at
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     ''', (
-                        row['trade_date'], row['ts_code'], row['name'], row['industry'],
-                        row['area'], row['pe'], row['float_share'], row['total_share'],
-                        row['total_assets'], row['liquid_assets'], row['fixed_assets'],
-                        row['reserved'], row['reserved_pershare'], row['eps'], row['bvps'],
-                        row['pb'], row['list_date'], row['undp'], row['per_undp'],
-                        row['rev_yoy'], row['profit_yoy'], row['gpr'], row['npr'], row['holder_num']
+                        row.get('ts_code'),
+                        row.get('symbol'),
+                        row.get('name'),
+                        row.get('area'),
+                        row.get('industry'),
+                        row.get('fullname'),
+                        row.get('enname'),
+                        row.get('cnspell'),
+                        row.get('market'),
+                        row.get('exchange'),
+                        row.get('curr_type'),
+                        row.get('list_status'),
+                        row.get('list_date'),
+                        row.get('delist_date'),
+                        row.get('is_hs'),
+                        row.get('act_name'),
+                        row.get('act_ent_type')
                     ))
                     saved_count += 1
                 except Exception as e:
@@ -467,11 +503,11 @@ class DataSync:
             conn.commit()
             conn.close()
             
-            logger.info(f"成功保存 {saved_count} 条股票基础信息")
+            logger.info(f"保存了 {saved_count} 条股票基础信息数据到stock_basic_info表")
             return saved_count
             
         except Exception as e:
-            logger.error(f"保存股票基础信息到数据库失败: {e}")
+            logger.error(f"保存股票基础信息失败: {e}")
             return 0
     
     def save_daily_basic_data(self, df):
@@ -552,22 +588,28 @@ class DataSync:
             logger.error(f"同步日期 {trade_date} 每日基础指标数据失败: {e}")
             return 0
     
-    def sync_stock_basic_by_date(self, trade_date):
-        """按交易日期同步股票基础信息"""
+
+    
+    def sync_stock_basic_info(self):
+        """同步股票基础信息（基于stock_basic接口）"""
         try:
-            logger.info(f"开始同步 {trade_date} 的股票基础信息")
+            logger.info("开始同步股票基础信息")
             
             # 获取股票基础信息
-            df = self.get_stock_basic_data(trade_date)
+            df = self.get_stock_basic_info()
             
-            # 保存数据
-            saved_count = self.save_stock_basic_data(df)
-            logger.info(f"日期 {trade_date} 股票基础信息同步完成，共保存 {saved_count} 条数据")
+            if df.empty:
+                logger.warning("无股票基础信息")
+                return 0
             
+            # 保存到数据库
+            saved_count = self.save_stock_basic_info(df)
+            
+            logger.info(f"完成同步股票基础信息，共保存 {saved_count} 条记录")
             return saved_count
             
         except Exception as e:
-            logger.error(f"同步日期 {trade_date} 股票基础信息失败: {e}")
+            logger.error(f"同步股票基础信息失败: {e}")
             return 0
     
 
@@ -850,7 +892,7 @@ class DataSync:
                     -- 从daily_basic表获取总市值（万元）
                     db.total_mv
                 FROM daily_data d
-                LEFT JOIN stock_basic b ON d.ts_code = b.ts_code AND d.trade_date = b.trade_date
+                LEFT JOIN stock_basic_info b ON d.ts_code = b.ts_code
                 LEFT JOIN daily_basic db ON d.ts_code = db.ts_code AND d.trade_date = db.trade_date
                 WHERE d.trade_date = ?
             '''

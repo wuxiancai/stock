@@ -139,7 +139,7 @@ def filter_td_sequential_stocks():
                db.turnover_rate, db.volume_ratio, db.pe, db.pb, db.total_mv,
                mf.net_mf_amount
         FROM daily_data d
-        LEFT JOIN stock_basic sb ON d.ts_code = sb.ts_code
+        LEFT JOIN stock_basic_info sb ON d.ts_code = sb.ts_code
         LEFT JOIN (
             SELECT ts_code, turnover_rate, volume_ratio, pe, pb, total_mv,
                    ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
@@ -341,36 +341,32 @@ def init_database():
         )
     ''')
     
-    # 创建股票基础信息表
+
+    
+    # 创建股票基础信息表（基于stock_basic接口）
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS stock_basic (
+        CREATE TABLE IF NOT EXISTS stock_basic_info (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            trade_date TEXT NOT NULL,
             ts_code TEXT NOT NULL,
+            symbol TEXT,
             name TEXT,
-            industry TEXT,
             area TEXT,
-            pe REAL,
-            float_share REAL,
-            total_share REAL,
-            total_assets REAL,
-            liquid_assets REAL,
-            fixed_assets REAL,
-            reserved REAL,
-            reserved_pershare REAL,
-            eps REAL,
-            bvps REAL,
-            pb REAL,
+            industry TEXT,
+            fullname TEXT,
+            enname TEXT,
+            cnspell TEXT,
+            market TEXT,
+            exchange TEXT,
+            curr_type TEXT,
+            list_status TEXT,
             list_date TEXT,
-            undp REAL,
-            per_undp REAL,
-            rev_yoy REAL,
-            profit_yoy REAL,
-            gpr REAL,
-            npr REAL,
-            holder_num INTEGER,
+            delist_date TEXT,
+            is_hs TEXT,
+            act_name TEXT,
+            act_ent_type TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(ts_code, trade_date)
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(ts_code)
         )
     ''')
     
@@ -462,11 +458,16 @@ def init_database():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_trade_date ON daily_data(trade_date)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_ts_code_date ON daily_data(ts_code, trade_date)')
     
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_ts_code ON stock_basic(ts_code)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_trade_date ON stock_basic(trade_date)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_ts_code_date ON stock_basic(ts_code, trade_date)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_industry ON stock_basic(industry)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_area ON stock_basic(area)')
+
+    
+    # 为stock_basic_info表创建索引
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_info_ts_code ON stock_basic_info(ts_code)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_info_symbol ON stock_basic_info(symbol)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_info_industry ON stock_basic_info(industry)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_info_area ON stock_basic_info(area)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_info_market ON stock_basic_info(market)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_info_list_status ON stock_basic_info(list_status)')
+    conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_info_exchange ON stock_basic_info(exchange)')
     
 
     
@@ -562,9 +563,9 @@ def stock_detail(ts_code):
     """股票详情页面"""
     conn = get_db_connection()
     
-    # 获取股票基础信息（包括市盈率、市净率等）
+    # 获取股票基础信息（从stock_basic_info表获取股票名称）
     stock_info = conn.execute(
-        'SELECT name, pe, pb, total_share, float_share FROM stock_basic WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
+        'SELECT name FROM stock_basic_info WHERE ts_code = ?',
         (ts_code,)
     ).fetchone()
     
@@ -679,7 +680,7 @@ def get_stocks():
                db.turnover_rate, db.volume_ratio, db.pe, db.pb, db.total_mv,
                mf.net_mf_amount
         FROM daily_data d
-        LEFT JOIN stock_basic sb ON d.ts_code = sb.ts_code
+        LEFT JOIN stock_basic_info sb ON d.ts_code = sb.ts_code
         LEFT JOIN (
             SELECT ts_code, turnover_rate, volume_ratio, pe, pb, total_mv,
                    ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
@@ -767,42 +768,96 @@ def manual_sync():
             'message': f'同步失败: {str(e)}'
         }), 500
 
-@app.route('/api/sync_basic')
-def manual_sync_basic():
-    """手动同步股票基础信息"""
-    trade_date = request.args.get('trade_date')
-    
-    if not trade_date:
-        # 如果没有指定日期，使用最新交易日期
-        conn = get_db_connection()
-        latest_date = conn.execute(
-            'SELECT MAX(trade_date) as max_date FROM daily_data'
-        ).fetchone()['max_date']
-        conn.close()
-        
-        if not latest_date:
-            return jsonify({
-                'success': False,
-                'message': '无法获取最新交易日期，请先同步日线数据'
-            }), 400
-        
-        trade_date = latest_date
-    
+
+
+@app.route('/api/sync_stock_basic_info', methods=['POST'])
+def sync_stock_basic_info():
+    """手动同步股票基础信息（基于stock_basic接口）"""
     try:
         data_sync = DataSync()
-        result = data_sync.sync_stock_basic_by_date(trade_date)
+        saved_count = data_sync.sync_stock_basic_info()
+        
         return jsonify({
             'success': True,
-            'message': f'股票基础信息同步完成，共处理 {result} 条数据',
-            'trade_date': trade_date
+            'message': f'股票基础信息同步完成，共保存 {saved_count} 条记录',
+            'saved_count': saved_count
         })
     except Exception as e:
         return jsonify({
             'success': False,
-            'message': f'股票基础信息同步失败: {str(e)}'
+            'message': f'同步失败: {str(e)}'
         }), 500
 
-
+@app.route('/api/stock_basic_info')
+def get_stock_basic_info():
+    """获取股票基础信息列表"""
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+        search = request.args.get('search', '')
+        market = request.args.get('market', '')
+        industry = request.args.get('industry', '')
+        list_status = request.args.get('list_status', 'L')
+        
+        conn = get_db_connection()
+        
+        # 构建查询条件
+        where_conditions = []
+        params = []
+        
+        if search:
+            where_conditions.append('(ts_code LIKE ? OR name LIKE ? OR symbol LIKE ?)')
+            search_param = f'%{search}%'
+            params.extend([search_param, search_param, search_param])
+        
+        if market:
+            where_conditions.append('market = ?')
+            params.append(market)
+        
+        if industry:
+            where_conditions.append('industry = ?')
+            params.append(industry)
+        
+        if list_status:
+            where_conditions.append('list_status = ?')
+            params.append(list_status)
+        
+        where_clause = ' AND '.join(where_conditions) if where_conditions else '1=1'
+        
+        # 获取总数
+        count_query = f'SELECT COUNT(*) as total FROM stock_basic_info WHERE {where_clause}'
+        total = conn.execute(count_query, params).fetchone()['total']
+        
+        # 获取分页数据
+        offset = (page - 1) * per_page
+        data_query = f'''
+            SELECT ts_code, symbol, name, area, industry, market, exchange, 
+                   list_status, list_date, delist_date, is_hs, created_at, updated_at
+            FROM stock_basic_info 
+            WHERE {where_clause}
+            ORDER BY ts_code
+            LIMIT ? OFFSET ?
+        '''
+        params.extend([per_page, offset])
+        
+        stocks = conn.execute(data_query, params).fetchall()
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'data': [dict(stock) for stock in stocks],
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total,
+                'pages': (total + per_page - 1) // per_page
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'获取股票基础信息失败: {str(e)}'
+        }), 500
 
 @app.route('/api/sync_moneyflow')
 def manual_sync_moneyflow():
@@ -936,10 +991,8 @@ def sync_all_a_stock_data_background(start_date=None, end_date=None):
             count1 = data_sync.sync_by_date(sync_date)
             total_count += count1
             
-            # 同步基础信息
-            update_sync_progress(f'同步 {sync_date} 基础信息', base_progress + 2, f'已完成日线数据')
-            count2 = data_sync.sync_stock_basic_by_date(sync_date)
-            total_count += count2
+            # 基础信息已通过stock_basic_info表同步，跳过
+            count2 = 0
             
             # 同步资金流向数据
             update_sync_progress(f'同步 {sync_date} 资金流向', base_progress + 3, f'已完成基础信息')
@@ -1358,9 +1411,9 @@ def get_status():
         SELECT 
             COUNT(DISTINCT ts_code) as basic_stock_count,
             COUNT(*) as basic_total_records,
-            MAX(trade_date) as basic_latest_date,
-            MIN(trade_date) as basic_earliest_date
-        FROM stock_basic
+            MAX(updated_at) as basic_latest_date,
+            MIN(created_at) as basic_earliest_date
+        FROM stock_basic_info
     ''').fetchone()
     
 
