@@ -426,37 +426,6 @@ async function syncBasicData() {
     }
 }
 
-// 同步融资融券数据
-async function syncMarginData() {
-    const button = event.target.closest('button');
-    const originalHtml = button.innerHTML;
-    
-    button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
-    
-    try {
-        const response = await fetch('/api/sync_margin');
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast(data.message, 'success');
-            // 同步完成后重新加载状态
-            setTimeout(() => {
-                loadSystemStatus();
-            }, 1000);
-        } else {
-            showToast(data.message, 'error');
-        }
-        
-    } catch (error) {
-        console.error('融资融券数据同步失败:', error);
-        showToast('融资融券数据同步失败', 'error');
-    } finally {
-        button.disabled = false;
-        button.innerHTML = originalHtml;
-    }
-}
-
 // 同步个股资金流向数据
 async function syncMoneyflowData() {
     const button = event.target.closest('button');
@@ -488,67 +457,7 @@ async function syncMoneyflowData() {
     }
 }
 
-// 同步龙虎榜每日明细数据
-async function syncTopListData() {
-    const button = event.target.closest('button');
-    const originalHtml = button.innerHTML;
-    
-    button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
-    
-    try {
-        const response = await fetch('/api/sync_top_list');
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast(data.message, 'success');
-            // 同步完成后重新加载状态
-            setTimeout(() => {
-                loadSystemStatus();
-            }, 1000);
-        } else {
-            showToast(data.message, 'error');
-        }
-        
-    } catch (error) {
-        console.error('龙虎榜每日明细数据同步失败:', error);
-        showToast('龙虎榜每日明细数据同步失败', 'error');
-    } finally {
-        button.disabled = false;
-        button.innerHTML = originalHtml;
-    }
-}
 
-// 同步龙虎榜机构明细数据
-async function syncTopInstData() {
-    const button = event.target.closest('button');
-    const originalHtml = button.innerHTML;
-    
-    button.disabled = true;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 同步中...';
-    
-    try {
-        const response = await fetch('/api/sync_top_inst');
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast(data.message, 'success');
-            // 同步完成后重新加载状态
-            setTimeout(() => {
-                loadSystemStatus();
-            }, 1000);
-        } else {
-            showToast(data.message, 'error');
-        }
-        
-    } catch (error) {
-        console.error('龙虎榜机构明细数据同步失败:', error);
-        showToast('龙虎榜机构明细数据同步失败', 'error');
-    } finally {
-        button.disabled = false;
-        button.innerHTML = originalHtml;
-    }
-}
 
 // 一键同步所有A股数据
 // 显示日期选择弹窗

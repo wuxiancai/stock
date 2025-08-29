@@ -374,23 +374,7 @@ def init_database():
         )
     ''')
     
-    # 创建融资融券交易汇总表
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS margin_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            trade_date TEXT NOT NULL,
-            exchange_id TEXT NOT NULL,
-            rzye REAL,
-            rzmre REAL,
-            rzche REAL,
-            rqye REAL,
-            rqmcl REAL,
-            rzrqye REAL,
-            rqyl REAL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(trade_date, exchange_id)
-        )
-    ''')
+
     
     # 创建个股资金流向表
     conn.execute('''
@@ -421,48 +405,9 @@ def init_database():
         )
     ''')
     
-    # 创建龙虎榜每日明细数据表
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS top_list_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            trade_date TEXT NOT NULL,
-            ts_code TEXT NOT NULL,
-            name TEXT,
-            close REAL,
-            pct_change REAL,
-            turnover_rate REAL,
-            amount REAL,
-            l_sell REAL,
-            l_buy REAL,
-            l_amount REAL,
-            net_amount REAL,
-            net_rate REAL,
-            amount_rate REAL,
-            float_values REAL,
-            reason TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(trade_date, ts_code)
-        )
-    ''')
+
     
-    # 创建龙虎榜机构明细数据表
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS top_inst_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            trade_date TEXT NOT NULL,
-            ts_code TEXT NOT NULL,
-            exalter TEXT,
-            buy REAL,
-            buy_rate REAL,
-            sell REAL,
-            sell_rate REAL,
-            net_buy REAL,
-            side TEXT,
-            reason TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(trade_date, ts_code, exalter)
-        )
-    ''')
+
     
 
     
@@ -523,22 +468,15 @@ def init_database():
     conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_industry ON stock_basic(industry)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_basic_area ON stock_basic(area)')
     
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_margin_trade_date ON margin_data(trade_date)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_margin_exchange ON margin_data(exchange_id)')
+
     
     conn.execute('CREATE INDEX IF NOT EXISTS idx_moneyflow_ts_code ON moneyflow_data(ts_code)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_moneyflow_trade_date ON moneyflow_data(trade_date)')
     conn.execute('CREATE INDEX IF NOT EXISTS idx_moneyflow_ts_code_date ON moneyflow_data(ts_code, trade_date)')
     
-    # 为龙虎榜每日明细数据表创建索引
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_top_list_ts_code ON top_list_data(ts_code)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_top_list_trade_date ON top_list_data(trade_date)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_top_list_ts_code_date ON top_list_data(ts_code, trade_date)')
+
     
-    # 为龙虎榜机构明细数据表创建索引
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_top_inst_ts_code ON top_inst_data(ts_code)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_top_inst_trade_date ON top_inst_data(trade_date)')
-    conn.execute('CREATE INDEX IF NOT EXISTS idx_top_inst_ts_code_trade_date ON top_inst_data(ts_code, trade_date)')
+
     
     # 为美国利率数据表创建索引
     
@@ -583,14 +521,7 @@ def init_database():
             net_mf_amount REAL,
             buy_lg_amount REAL,
             sell_lg_amount REAL,
-            -- 龙虎榜字段
-            net_amount REAL,
             turnover_rate REAL,
-            reason TEXT,
-            -- 融资融券字段（仅对应exchange_id的汇总数据）
-            rzye REAL,
-            rzmre REAL,
-            rzrqye REAL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(ts_code, trade_date, data_type)
@@ -871,40 +802,7 @@ def manual_sync_basic():
             'message': f'股票基础信息同步失败: {str(e)}'
         }), 500
 
-@app.route('/api/sync_margin')
-def manual_sync_margin():
-    """手动同步融资融券数据"""
-    trade_date = request.args.get('trade_date')
-    
-    if not trade_date:
-        # 如果没有指定日期，使用最新交易日期
-        conn = get_db_connection()
-        latest_date = conn.execute(
-            'SELECT MAX(trade_date) as max_date FROM daily_data'
-        ).fetchone()['max_date']
-        conn.close()
-        
-        if not latest_date:
-            return jsonify({
-                'success': False,
-                'message': '无法获取最新交易日期，请先同步日线数据'
-            }), 400
-        
-        trade_date = latest_date
-    
-    try:
-        data_sync = DataSync()
-        result = data_sync.sync_margin_by_date(trade_date)
-        return jsonify({
-            'success': True,
-            'message': f'融资融券数据同步完成，共处理 {result} 条数据',
-            'trade_date': trade_date
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'融资融券数据同步失败: {str(e)}'
-        }), 500
+
 
 @app.route('/api/sync_moneyflow')
 def manual_sync_moneyflow():
@@ -941,174 +839,13 @@ def manual_sync_moneyflow():
             'message': f'个股资金流向数据同步失败: {str(e)}'
         }), 500
 
-@app.route('/api/sync_top_list')
-def manual_sync_top_list():
-    """手动同步龙虎榜每日明细数据"""
-    trade_date = request.args.get('trade_date')
-    ts_code = request.args.get('ts_code')
-    
-    if not trade_date:
-        # 如果没有指定日期，使用最新交易日期
-        conn = get_db_connection()
-        latest_date = conn.execute(
-            'SELECT MAX(trade_date) as max_date FROM daily_data'
-        ).fetchone()['max_date']
-        conn.close()
-        
-        if not latest_date:
-            return jsonify({
-                'success': False,
-                'message': '无法获取最新交易日期，请先同步日线数据'
-            }), 400
-        
-        trade_date = latest_date
-    
-    try:
-        data_sync = DataSync()
-        result = data_sync.sync_top_list_by_date(trade_date, ts_code)
-        return jsonify({
-            'success': True,
-            'message': f'龙虎榜每日明细数据同步完成，共处理 {result} 条数据',
-            'trade_date': trade_date
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'龙虎榜每日明细数据同步失败: {str(e)}'
-        }), 500
 
-@app.route('/api/sync_top_inst')
-def manual_sync_top_inst():
-    """手动同步龙虎榜机构明细数据"""
-    trade_date = request.args.get('trade_date')
-    ts_code = request.args.get('ts_code')
-    
-    if not trade_date:
-        # 如果没有指定日期，使用最新交易日期
-        conn = get_db_connection()
-        latest_date = conn.execute(
-            'SELECT MAX(trade_date) as max_date FROM daily_data'
-        ).fetchone()['max_date']
-        conn.close()
-        
-        if not latest_date:
-            return jsonify({
-                'success': False,
-                'message': '无法获取最新交易日期，请先同步日线数据'
-            }), 400
-        
-        trade_date = latest_date
-    
-    try:
-        data_sync = DataSync()
-        result = data_sync.sync_top_inst_by_date(trade_date, ts_code)
-        return jsonify({
-            'success': True,
-            'message': f'龙虎榜机构明细数据同步完成，共处理 {result} 条数据',
-            'trade_date': trade_date
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'龙虎榜机构明细数据同步失败: {str(e)}'
-        }), 500
 
-@app.route('/api/top_list')
-def get_top_list():
-    """获取龙虎榜每日明细数据"""
-    trade_date = request.args.get('trade_date')
-    ts_code = request.args.get('ts_code')
-    limit = request.args.get('limit', 100, type=int)
-    
-    conn = get_db_connection()
-    
-    # 构建查询条件
-    where_conditions = []
-    params = []
-    
-    if trade_date:
-        where_conditions.append('trade_date = ?')
-        params.append(trade_date)
-    
-    if ts_code:
-        where_conditions.append('ts_code = ?')
-        params.append(ts_code)
-    
-    where_clause = ''
-    if where_conditions:
-        where_clause = 'WHERE ' + ' AND '.join(where_conditions)
-    
-    # 查询龙虎榜数据
-    query = f'''
-        SELECT trade_date, ts_code, name, close, pct_change, turnover_rate,
-               amount, l_sell, l_buy, l_amount, net_amount, net_rate,
-               amount_rate, float_values, reason
-        FROM top_list_data
-        {where_clause}
-        ORDER BY trade_date DESC, net_amount DESC
-        LIMIT ?
-    '''
-    
-    params.append(limit)
-    top_list = conn.execute(query, params).fetchall()
-    
-    conn.close()
-    
-    # 转换为字典列表
-    top_list_data = [dict(row) for row in top_list]
-    
-    return jsonify({
-        'top_list': top_list_data,
-        'total': len(top_list_data)
-    })
 
-@app.route('/api/top_inst')
-def get_top_inst():
-    """获取龙虎榜机构明细数据"""
-    trade_date = request.args.get('trade_date')
-    ts_code = request.args.get('ts_code')
-    limit = request.args.get('limit', 100, type=int)
-    
-    conn = get_db_connection()
-    
-    # 构建查询条件
-    where_conditions = []
-    params = []
-    
-    if trade_date:
-        where_conditions.append('trade_date = ?')
-        params.append(trade_date)
-    
-    if ts_code:
-        where_conditions.append('ts_code = ?')
-        params.append(ts_code)
-    
-    where_clause = ''
-    if where_conditions:
-        where_clause = 'WHERE ' + ' AND '.join(where_conditions)
-    
-    # 查询龙虎榜机构数据
-    query = f'''
-        SELECT trade_date, ts_code, exalter, buy, buy_rate, sell, sell_rate, 
-               net_buy, side, reason
-        FROM top_inst_data
-        {where_clause}
-        ORDER BY trade_date DESC, net_buy DESC
-        LIMIT ?
-    '''
-    
-    params.append(limit)
-    top_inst = conn.execute(query, params).fetchall()
-    
-    conn.close()
-    
-    # 转换为字典列表
-    top_inst_data = [dict(row) for row in top_inst]
-    
-    return jsonify({
-        'top_inst': top_inst_data,
-        'total': len(top_inst_data)
-    })
+
+
+
+
 
 def update_sync_progress(step, progress, details=None):
     """更新同步进度"""
@@ -1204,32 +941,17 @@ def sync_all_a_stock_data_background(start_date=None, end_date=None):
             count2 = data_sync.sync_stock_basic_by_date(sync_date)
             total_count += count2
             
-            # 同步融资融券数据
-            update_sync_progress(f'同步 {sync_date} 融资融券', base_progress + 3, f'已完成基础信息')
-            count3 = data_sync.sync_margin_by_date(sync_date)
+            # 同步资金流向数据
+            update_sync_progress(f'同步 {sync_date} 资金流向', base_progress + 3, f'已完成基础信息')
+            count3 = data_sync.sync_moneyflow_by_date(sync_date)
             total_count += count3
             
-            # 同步资金流向数据
-            update_sync_progress(f'同步 {sync_date} 资金流向', base_progress + 4, f'已完成融资融券')
-            count4 = data_sync.sync_moneyflow_by_date(sync_date)
+            # 同步每日基础指标数据
+            update_sync_progress(f'同步 {sync_date} 基础指标', base_progress + 4, f'已完成资金流向')
+            count4 = data_sync.sync_daily_basic_by_date(sync_date)
             total_count += count4
             
-            # 同步龙虎榜每日明细
-            update_sync_progress(f'同步 {sync_date} 龙虎榜明细', base_progress + 5, f'已完成资金流向')
-            count5 = data_sync.sync_top_list_by_date(sync_date)
-            total_count += count5
-            
-            # 同步龙虎榜机构明细
-            update_sync_progress(f'同步 {sync_date} 龙虎榜机构', base_progress + 6, f'已完成龙虎榜明细')
-            count6 = data_sync.sync_top_inst_by_date(sync_date)
-            total_count += count6
-            
-            # 同步每日基础指标数据
-            update_sync_progress(f'同步 {sync_date} 基础指标', base_progress + 7, f'已完成龙虎榜机构')
-            count7 = data_sync.sync_daily_basic_by_date(sync_date)
-            total_count += count7
-            
-            date_total = count1 + count2 + count3 + count4 + count5 + count6 + count7
+            date_total = count1 + count2 + count3 + count4
             results.append(f'{sync_date}: {date_total}条')
         
         update_sync_progress('检查数据完整性', sync_progress['total_steps'], f'正在验证同步数据...')
@@ -1641,15 +1363,7 @@ def get_status():
         FROM stock_basic
     ''').fetchone()
     
-    # 获取融资融券数据统计
-    margin_stats = conn.execute('''
-        SELECT 
-            COUNT(DISTINCT exchange_id) as exchange_count,
-            COUNT(*) as margin_total_records,
-            MAX(trade_date) as margin_latest_date,
-            MIN(trade_date) as margin_earliest_date
-        FROM margin_data
-    ''').fetchone()
+
     
     # 获取个股资金流向数据统计
     moneyflow_stats = conn.execute('''
@@ -1661,25 +1375,9 @@ def get_status():
         FROM moneyflow_data
     ''').fetchone()
     
-    # 获取龙虎榜每日明细数据统计
-    top_list_stats = conn.execute('''
-        SELECT 
-            COUNT(DISTINCT ts_code) as top_list_stock_count,
-            COUNT(*) as top_list_total_records,
-            MAX(trade_date) as top_list_latest_date,
-            MIN(trade_date) as top_list_earliest_date
-        FROM top_list_data
-    ''').fetchone()
+
     
-    # 获取龙虎榜机构明细数据统计
-    top_inst_stats = conn.execute('''
-        SELECT 
-            COUNT(DISTINCT ts_code) as top_inst_stock_count,
-            COUNT(*) as top_inst_total_records,
-            MAX(trade_date) as top_inst_latest_date,
-            MIN(trade_date) as top_inst_earliest_date
-        FROM top_inst_data
-    ''').fetchone()
+
     
     # 获取指数日线行情数据统计
     index_stats = conn.execute('''
@@ -1706,30 +1404,14 @@ def get_status():
             'latest_date': basic_stats['basic_latest_date'],
             'earliest_date': basic_stats['basic_earliest_date']
         },
-        'margin_data': {
-            'exchange_count': margin_stats['exchange_count'] or 0,
-            'total_records': margin_stats['margin_total_records'] or 0,
-            'latest_date': margin_stats['margin_latest_date'],
-            'earliest_date': margin_stats['margin_earliest_date']
-        },
+
         'moneyflow_data': {
             'stock_count': moneyflow_stats['moneyflow_stock_count'] or 0,
             'total_records': moneyflow_stats['moneyflow_total_records'] or 0,
             'latest_date': moneyflow_stats['moneyflow_latest_date'],
             'earliest_date': moneyflow_stats['moneyflow_earliest_date']
         },
-        'top_list_data': {
-            'stock_count': top_list_stats['top_list_stock_count'] or 0,
-            'total_records': top_list_stats['top_list_total_records'] or 0,
-            'latest_date': top_list_stats['top_list_latest_date'],
-            'earliest_date': top_list_stats['top_list_earliest_date']
-        },
-        'top_inst_data': {
-            'stock_count': top_inst_stats['top_inst_stock_count'] or 0,
-            'total_records': top_inst_stats['top_inst_total_records'] or 0,
-            'latest_date': top_inst_stats['top_inst_latest_date'],
-            'earliest_date': top_inst_stats['top_inst_earliest_date']
-        },
+
         'index_data': {
             'index_count': index_stats['index_count'] or 0,
             'total_records': index_stats['index_total_records'] or 0,
