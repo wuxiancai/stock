@@ -19,7 +19,8 @@ class DataSync:
         
         # API调用频率控制
         self.last_api_call_time = 0
-        self.api_call_interval = 30  # 每30秒最多调用2次，所以每次调用间隔15秒
+        self.rate_limited = False  # 是否遇到频率限制
+        self.api_call_interval = 30  # 遇到频率限制时的等待间隔
         self.max_retries = 3  # 最大重试次数
     
     def get_db_connection(self):
@@ -31,27 +32,34 @@ class DataSync:
         """带重试机制的API调用包装函数"""
         for attempt in range(self.max_retries):
             try:
-                # 检查API调用频率
-                current_time = time.time()
-                time_since_last_call = current_time - self.last_api_call_time
-                
-                if time_since_last_call < self.api_call_interval:
-                    sleep_time = self.api_call_interval - time_since_last_call
-                    logger.info(f"API调用频率控制，等待 {sleep_time:.1f} 秒...")
-                    time.sleep(sleep_time)
+                # 只有在遇到频率限制时才进行时间控制
+                if self.rate_limited:
+                    current_time = time.time()
+                    time_since_last_call = current_time - self.last_api_call_time
+                    
+                    if time_since_last_call < self.api_call_interval:
+                        sleep_time = self.api_call_interval - time_since_last_call
+                        logger.info(f"API调用频率控制，等待 {sleep_time:.1f} 秒...")
+                        time.sleep(sleep_time)
                 
                 # 执行API调用
                 result = api_func(*args, **kwargs)
                 self.last_api_call_time = time.time()
                 
+                # 成功调用后，重置频率限制标志
+                if self.rate_limited:
+                    logger.info("API调用成功，解除频率限制")
+                    self.rate_limited = False
+                
                 return result
                 
             except Exception as e:
                 error_msg = str(e)
-                if "每分钟最多访问该接口" in error_msg or "访问频率" in error_msg:
-                    # 频率限制错误，增加等待时间
+                if "每分钟最多访问该接口" in error_msg or "访问频率" in error_msg or "抱歉，您每分钟最多访问" in error_msg:
+                    # 频率限制错误，启用频率控制
+                    self.rate_limited = True
                     wait_time = 60 * (attempt + 1)  # 递增等待时间
-                    logger.warning(f"API频率限制，第{attempt+1}次重试，等待 {wait_time} 秒...")
+                    logger.warning(f"检测到API频率限制告警，启用时间限制控制，第{attempt+1}次重试，等待 {wait_time} 秒...")
                     time.sleep(wait_time)
                     continue
                 else:
