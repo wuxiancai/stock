@@ -32,7 +32,19 @@
                 <button class="btn btn-info btn-sm me-2" onclick="syncTdSequential()">
                     <i class="fas fa-filter"></i> 同步九转序列
                 </button>
-
+                
+                <!-- 系统资源显示 -->
+                <div class="d-flex align-items-center text-light me-3">
+                    <small id="systemResources" class="text-nowrap">
+                        <i class="fas fa-microchip me-1"></i>
+                        <span id="cpuUsage">CPU: -</span>
+                        <span class="mx-2">|</span>
+                        <i class="fas fa-memory me-1"></i>
+                        <span id="memUsage">MEM: -</span>
+                        <span class="mx-2">|</span>
+                        <span id="memFree">FREE: -</span>
+                    </small>
+                </div>
 
             </div>
         </div>
@@ -426,6 +438,38 @@
                 }, 100);
             }
         }
+        
+        // 系统资源监控功能
+        function updateSystemResources() {
+            fetch('/api/system_resources')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('cpuUsage').textContent = `CPU: ${data.cpu_percent}%`;
+                        document.getElementById('memUsage').textContent = `MEM: USED: ${data.memory_percent}%`;
+                        document.getElementById('memFree').textContent = `FREE: ${data.memory_free_mb}M`;
+                    } else {
+                        document.getElementById('cpuUsage').textContent = 'CPU: -';
+                        document.getElementById('memUsage').textContent = 'MEM: -';
+                        document.getElementById('memFree').textContent = 'FREE: -';
+                    }
+                })
+                .catch(error => {
+                    console.error('获取系统资源失败:', error);
+                    document.getElementById('cpuUsage').textContent = 'CPU: -';
+                    document.getElementById('memUsage').textContent = 'MEM: -';
+                    document.getElementById('memFree').textContent = 'FREE: -';
+                });
+        }
+        
+        // 页面加载完成后开始监控系统资源
+        document.addEventListener('DOMContentLoaded', function() {
+            // 立即获取一次系统资源信息
+            updateSystemResources();
+            
+            // 每5秒更新一次系统资源信息
+            setInterval(updateSystemResources, 5000);
+        });
 
 
     </script>

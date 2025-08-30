@@ -1543,6 +1543,35 @@ def get_status():
         }
     })
 
+@app.route('/api/system_resources')
+def get_system_resources():
+    """获取系统资源使用情况"""
+    try:
+        # 获取CPU使用率
+        cpu_percent = psutil.cpu_percent(interval=1)
+        
+        # 获取内存使用情况
+        memory = psutil.virtual_memory()
+        memory_percent = memory.percent
+        memory_free_mb = round(memory.available / 1024 / 1024)
+        
+        # 获取磁盘使用情况
+        disk = psutil.disk_usage('/')
+        disk_percent = round((disk.used / disk.total) * 100, 1)
+        
+        return jsonify({
+            'success': True,
+            'cpu_percent': round(cpu_percent, 1),
+            'memory_percent': round(memory_percent, 1),
+            'memory_free_mb': memory_free_mb,
+            'disk_percent': disk_percent
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 # 自选股相关API
 @app.route('/favorites')
 def favorites_page():
