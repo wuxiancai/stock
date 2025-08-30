@@ -306,10 +306,21 @@
       function calculateEMA(data, period) {
           const ema = [];
           const multiplier = 2 / (period + 1);
-          ema[0] = data[0];
-          for (let i = 1; i < data.length; i++) {
-              ema[i] = (data[i] * multiplier) + (ema[i - 1] * (1 - multiplier));
+          
+          // 第一个值使用简单移动平均作为初始值
+          if (data.length >= period) {
+              let sum = 0;
+              for (let i = 0; i < period; i++) {
+                  sum += data[i];
+              }
+              ema[period - 1] = sum / period;
+              
+              // 从第period个值开始计算EMA
+              for (let i = period; i < data.length; i++) {
+                  ema[i] = (data[i] * multiplier) + (ema[i - 1] * (1 - multiplier));
+              }
           }
+          
           return ema;
       }
 
@@ -460,6 +471,8 @@
              const rsiData = calculateRSI(closes);
              const tdSequentialData = calculateTDSequential(closes);
              const bollData = calculateBOLL(closes);
+             const ema5Data = calculateEMA(closes, 5);
+             const ema10Data = calculateEMA(closes, 10);
 
              const option = {
                  title: {
@@ -482,12 +495,16 @@
                          } else if (sellSeq !== null) {
                              tdInfo = `<br/>九转序列(卖): <span style="color: #00AA00; font-weight: bold;">${sellSeq}</span>`;
                          }
+                         const ema5Value = ema5Data[dataIndex] ? ema5Data[dataIndex].toFixed(2) : '--';
+                         const ema10Value = ema10Data[dataIndex] ? ema10Data[dataIndex].toFixed(2) : '--';
                          return `
                              <div style="text-align: left;">
                                  <strong>${data.date}</strong><br/>
                                  开盘价: ${data.open.toFixed(2)}<br/>
                                  收盘价: ${data.close.toFixed(2)}<br/>
                                  涨跌幅: ${data.pct_chg > 0 ? '+' : ''}${data.pct_chg.toFixed(2)}%<br/>
+                                 <span style="color: #00AA00;">EMA5: ${ema5Value}</span><br/>
+                                 <span style="color: #FF0000;">EMA10: ${ema10Value}</span><br/>
                                  成交量: ${(data.volume / 10000).toFixed(2)}万手<br/>
                                  成交额: ${(data.amount / 10000).toFixed(2)}万元${tdInfo}
                              </div>
@@ -495,7 +512,7 @@
                      }
                  },
                  legend: {
-                     data: ['K线', '成交量', 'DIF', 'DEA', 'MACD', 'K', 'D', 'J', 'RSI', '九转序列', 'BOLL上轨', 'BOLL中轨', 'BOLL下轨'],
+                     data: ['K线', 'EMA5', 'EMA10', '成交量', 'DIF', 'DEA', 'MACD', 'K', 'D', 'J', 'RSI', '九转序列', 'BOLL上轨', 'BOLL中轨', 'BOLL下轨'],
                      top: 30
                  },
                  grid: [
@@ -845,6 +862,22 @@
                                  }).filter(item => item !== null)
                              )
                          }
+                     },
+                     {
+                         name: 'EMA5',
+                         type: 'line',
+                         data: ema5Data,
+                         lineStyle: { color: '#00AA00', width: 2 },
+                         symbol: 'none',
+                         smooth: true
+                     },
+                     {
+                         name: 'EMA10',
+                         type: 'line',
+                         data: ema10Data,
+                         lineStyle: { color: '#FF0000', width: 2 },
+                         symbol: 'none',
+                         smooth: true
                      },
                      {
                          name: 'BOLL上轨',
