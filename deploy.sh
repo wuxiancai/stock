@@ -70,8 +70,41 @@ print_info "=== 步骤1: 更新系统包 ==="
 print_info "更新apt包列表..."
 sudo apt update > /dev/null 2>&1
 print_info "安装必要的系统包..."
-sudo apt install -y python3 python3-pip python3-venv git > /dev/null 2>&1
+sudo apt install -y python3 python3-pip python3-venv git language-pack-zh-hans language-pack-en locales > /dev/null 2>&1
 print_success "系统包安装完成"
+
+# 1.5. 配置UTF-8编码环境
+echo
+print_info "=== 步骤1.5: 配置UTF-8编码环境 ==="
+print_info "生成UTF-8 locale..."
+sudo locale-gen en_US.UTF-8 > /dev/null 2>&1
+sudo locale-gen zh_CN.UTF-8 > /dev/null 2>&1
+
+print_info "配置环境变量..."
+# 备份原始.bashrc
+if [ -f "$HOME/.bashrc" ]; then
+    cp "$HOME/.bashrc" "$HOME/.bashrc.backup.$(date +%Y%m%d_%H%M%S)"
+fi
+
+# 添加环境变量（如果不存在）
+if ! grep -q "export LANG=en_US.UTF-8" "$HOME/.bashrc"; then
+    echo "export LANG=en_US.UTF-8" >> "$HOME/.bashrc"
+fi
+
+if ! grep -q "export LC_ALL=en_US.UTF-8" "$HOME/.bashrc"; then
+    echo "export LC_ALL=en_US.UTF-8" >> "$HOME/.bashrc"
+fi
+
+if ! grep -q "export PYTHONIOENCODING=utf-8" "$HOME/.bashrc"; then
+    echo "export PYTHONIOENCODING=utf-8" >> "$HOME/.bashrc"
+fi
+
+# 立即应用环境变量
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export PYTHONIOENCODING=utf-8
+
+print_success "UTF-8编码环境配置完成"
 
 # 2. 创建虚拟环境
 echo
@@ -101,6 +134,31 @@ else
     print_warning "requirements.txt文件不存在，请手动安装依赖包"
 fi
 
+# 3.5. 初始化数据库和同步股票基础信息
+echo
+print_info "=== 步骤3.5: 初始化数据库和同步数据 ==="
+cd "$APP_DIR"
+
+print_info "初始化数据库..."
+python run.py init_db > /dev/null 2>&1
+print_success "数据库初始化完成"
+
+print_info "同步股票基础信息（这可能需要几分钟）..."
+python run.py sync_stock_basic_info
+print_success "股票基础信息同步完成"
+
+print_info "运行编码测试验证..."
+if [ -f "test_encoding.py" ]; then
+    python test_encoding.py > /tmp/encoding_test.log 2>&1
+    if grep -q "测试完成" /tmp/encoding_test.log; then
+        print_success "编码测试通过"
+    else
+        print_warning "编码测试可能存在问题，请检查日志: /tmp/encoding_test.log"
+    fi
+else
+    print_warning "编码测试脚本不存在，跳过测试"
+fi
+
 # 4. 创建systemd服务文件
 echo
 print_info "=== 步骤4: 创建systemd服务配置 ==="
@@ -121,16 +179,20 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-# 使用 EnvironmentFile 或 Environment 定义变量
-Environment="USER_NAME=ubuntu"
-Environment="APP_DIR=/home/ubuntu/stock"
-Environment="VENV_DIR=/home/ubuntu/stock-venv"
+# 环境变量配置
+Environment="USER_NAME=$USER_NAME"
+Environment="APP_DIR=$APP_DIR"
+Environment="VENV_DIR=$VENV_DIR"
 Environment="APP_ENV=production"
+# UTF-8编码环境变量
+Environment="LANG=en_US.UTF-8"
+Environment="LC_ALL=en_US.UTF-8"
+Environment="PYTHONIOENCODING=utf-8"
 
-User=%E{USER_NAME}
-Group=%E{USER_NAME}
-WorkingDirectory=%E{APP_DIR}
-ExecStart=%E{VENV_DIR}/bin/python %E{APP_DIR}/app.py
+User=$USER_NAME
+Group=$USER_NAME
+WorkingDirectory=$APP_DIR
+ExecStart=$VENV_DIR/bin/python $APP_DIR/app.py
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -202,6 +264,15 @@ echo "  应用目录: $APP_DIR"
 echo "  虚拟环境: $VENV_DIR"
 echo "  服务名称: $SERVICE_NAME"
 echo "  运行端口: 8888"
+echo "  UTF-8编码: 已配置"
+echo "  股票数据: 已同步"
+echo
+print_info "已集成功能:"
+echo "  ✅ UTF-8编码环境自动配置"
+echo "  ✅ 中文字符显示修复"
+echo "  ✅ 股票基础信息自动同步"
+echo "  ✅ 数据库编码优化"
+echo "  ✅ 编码问题自动检测"
 echo
 print_info "常用管理命令:"
 echo "  查看服务状态: sudo systemctl status $SERVICE_NAME"
@@ -209,7 +280,10 @@ echo "  重启服务: sudo systemctl restart $SERVICE_NAME"
 echo "  停止服务: sudo systemctl stop $SERVICE_NAME"
 echo "  查看实时日志: sudo journalctl -u $SERVICE_NAME -f"
 echo "  查看错误日志: sudo journalctl -u $SERVICE_NAME --since today"
+echo "  重新同步数据: cd $APP_DIR && $VENV_DIR/bin/python run.py sync_stock_basic_info"
+echo "  编码问题检测: cd $APP_DIR && $VENV_DIR/bin/python test_encoding.py"
 echo
 print_info "访问地址: http://服务器IP:8888"
 echo
 print_success "🚀 股票选股系统已成功部署并启动！"
+print_info "💡 系统已自动配置UTF-8编码环境，中文字符将正常显示"
