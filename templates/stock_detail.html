@@ -327,9 +327,43 @@
       function calculateMACD(closes) {
           const ema12 = calculateEMA(closes, 12);
           const ema26 = calculateEMA(closes, 26);
-          const dif = ema12.map((val, i) => val - ema26[i]);
-          const dea = calculateEMA(dif, 9);
-          const macd = dif.map((val, i) => (val - dea[i]) * 2);
+          
+          // 计算DIF，只在两个EMA都有值时计算
+          const dif = [];
+          for (let i = 0; i < closes.length; i++) {
+              if (ema12[i] !== undefined && ema26[i] !== undefined) {
+                  dif[i] = ema12[i] - ema26[i];
+              } else {
+                  dif[i] = null;
+              }
+          }
+          
+          // 过滤掉null值来计算DEA
+          const validDif = dif.filter(val => val !== null);
+          const deaValues = calculateEMA(validDif, 9);
+          
+          // 将DEA值映射回原始索引
+          const dea = [];
+          let deaIndex = 0;
+          for (let i = 0; i < dif.length; i++) {
+              if (dif[i] !== null) {
+                  dea[i] = deaValues[deaIndex] || null;
+                  deaIndex++;
+              } else {
+                  dea[i] = null;
+              }
+          }
+          
+          // 计算MACD柱状图
+          const macd = [];
+          for (let i = 0; i < dif.length; i++) {
+              if (dif[i] !== null && dea[i] !== null) {
+                  macd[i] = (dif[i] - dea[i]) * 2;
+              } else {
+                  macd[i] = null;
+              }
+          }
+          
           return { dif, dea, macd };
       }
 
