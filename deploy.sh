@@ -70,21 +70,8 @@ print_info "=== 步骤1: 更新系统包 ==="
 print_info "更新apt包列表..."
 sudo apt update > /dev/null 2>&1
 print_info "安装必要的系统包..."
-sudo apt install -y software-properties-common git language-pack-zh-hans language-pack-en locales > /dev/null 2>&1
-
-print_info "添加deadsnakes PPA源（用于安装Python 3.11）..."
-sudo add-apt-repository -y ppa:deadsnakes/ppa > /dev/null 2>&1
-sudo apt update > /dev/null 2>&1
-
-print_info "安装Python 3.11及相关包..."
-sudo apt install -y python3.11 python3.11-venv python3.11-dev python3.11-distutils > /dev/null 2>&1
-
-print_info "安装pip for Python 3.11..."
-wget -q https://bootstrap.pypa.io/get-pip.py
-python3.11 get-pip.py --user > /dev/null 2>&1
-rm -f get-pip.py
-
-print_success "Python 3.11和系统包安装完成"
+sudo apt install -y python3 python3-pip python3-venv python3-dev git language-pack-zh-hans language-pack-en locales > /dev/null 2>&1
+print_success "系统包安装完成"
 
 # 1.5. 配置UTF-8编码环境
 echo
@@ -127,8 +114,8 @@ if [ -d "$VENV_DIR" ]; then
     rm -rf "$VENV_DIR"
 fi
 
-print_info "创建新的虚拟环境（使用Python 3.11）..."
-python3.11 -m venv "$VENV_DIR"
+print_info "创建新的虚拟环境（使用系统Python3）..."
+python3 -m venv "$VENV_DIR"
 print_success "虚拟环境创建完成: $VENV_DIR"
 print_info "虚拟环境Python版本: $("$VENV_DIR/bin/python" --version)"
 
