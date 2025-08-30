@@ -1,9 +1,25 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os
+import sys
+
+# 设置环境变量以确保正确处理UTF-8编码
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+if 'LANG' not in os.environ:
+    os.environ['LANG'] = 'en_US.UTF-8'
+if 'LC_ALL' not in os.environ:
+    os.environ['LC_ALL'] = 'en_US.UTF-8'
+
 import tushare as ts
 import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 import time
 import logging
+
+# 配置Pandas显示选项以正确处理中文
+pd.set_option('display.unicode.east_asian_width', True)
+pd.set_option('display.unicode.ambiguous_as_wide', True)
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -27,6 +43,8 @@ class DataSync:
         """获取数据库连接"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        # 设置文本工厂以正确处理UTF-8编码
+        conn.text_factory = str
         return conn
     
     def _api_call_with_retry(self, api_func, *args, **kwargs):
@@ -212,8 +230,24 @@ class DataSync:
                 logger.warning("无股票基础信息")
                 return pd.DataFrame()
             
-            logger.info(f"获取到 {len(df)} 条股票基础信息")
-            return df
+            # 添加调试日志，检查API返回的数据编码
+            logger.info(f"获取到 {len(stock_basic)} 只股票的基础信息")
+            
+            # 检查前几条数据的编码情况
+            if len(stock_basic) > 0:
+                sample_data = stock_basic.head(3)
+                for idx, row in sample_data.iterrows():
+                    logger.debug(f"样本数据 {idx}: ts_code={row.get('ts_code')}, name={row.get('name')}, area={row.get('area')}, industry={row.get('industry')}")
+                    # 检查字符编码
+                    name = row.get('name')
+                    if name and isinstance(name, str):
+                        try:
+                            name_encoded = name.encode('utf-8')
+                            logger.debug(f"股票名称 '{name}' UTF-8编码长度: {len(name_encoded)} 字节")
+                        except UnicodeEncodeError as e:
+                            logger.warning(f"股票名称编码异常: {e}")
+            
+            return stock_basic
             
         except Exception as e:
             logger.error(f"获取股票基础信息失败: {e}")
@@ -471,6 +505,14 @@ class DataSync:
             saved_count = 0
             for _, row in df.iterrows():
                 try:
+                    # 确保中文字符正确编码
+                    def safe_encode(value):
+                        if value is None:
+                            return None
+                        if isinstance(value, str):
+                            return value.encode('utf-8').decode('utf-8')
+                        return value
+                    
                     cursor.execute('''
                         INSERT OR REPLACE INTO stock_basic_info (
                             ts_code, symbol, name, area, industry, fullname, enname, cnspell,
@@ -478,23 +520,23 @@ class DataSync:
                             is_hs, act_name, act_ent_type, updated_at
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                     ''', (
-                        row.get('ts_code'),
-                        row.get('symbol'),
-                        row.get('name'),
-                        row.get('area'),
-                        row.get('industry'),
-                        row.get('fullname'),
-                        row.get('enname'),
-                        row.get('cnspell'),
-                        row.get('market'),
-                        row.get('exchange'),
-                        row.get('curr_type'),
-                        row.get('list_status'),
-                        row.get('list_date'),
-                        row.get('delist_date'),
-                        row.get('is_hs'),
-                        row.get('act_name'),
-                        row.get('act_ent_type')
+                        safe_encode(row.get('ts_code')),
+                        safe_encode(row.get('symbol')),
+                        safe_encode(row.get('name')),
+                        safe_encode(row.get('area')),
+                        safe_encode(row.get('industry')),
+                        safe_encode(row.get('fullname')),
+                        safe_encode(row.get('enname')),
+                        safe_encode(row.get('cnspell')),
+                        safe_encode(row.get('market')),
+                        safe_encode(row.get('exchange')),
+                        safe_encode(row.get('curr_type')),
+                        safe_encode(row.get('list_status')),
+                        safe_encode(row.get('list_date')),
+                        safe_encode(row.get('delist_date')),
+                        safe_encode(row.get('is_hs')),
+                        safe_encode(row.get('act_name')),
+                        safe_encode(row.get('act_ent_type'))
                     ))
                     saved_count += 1
                 except Exception as e:

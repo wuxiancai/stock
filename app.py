@@ -1,3 +1,15 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import os
+import sys
+
+# 设置环境变量以确保正确处理UTF-8编码
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+if 'LANG' not in os.environ:
+    os.environ['LANG'] = 'en_US.UTF-8'
+if 'LC_ALL' not in os.environ:
+    os.environ['LC_ALL'] = 'en_US.UTF-8'
+
 from flask import Flask, render_template, jsonify, request, Response
 from datetime import datetime, timedelta
 import sqlite3
@@ -12,6 +24,11 @@ import json
 import time
 import threading
 from queue import Queue
+import pandas as pd
+
+# 配置Pandas显示选项以正确处理中文
+pd.set_option('display.unicode.east_asian_width', True)
+pd.set_option('display.unicode.ambiguous_as_wide', True)
 
 # 技术指标计算函数
 def calculate_rsi(closes, period=14):
@@ -315,6 +332,8 @@ def get_db_connection():
     """获取数据库连接"""
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
+    # 设置文本工厂以正确处理UTF-8编码
+    conn.text_factory = str
     return conn
 
 def init_database():
