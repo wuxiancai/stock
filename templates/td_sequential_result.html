@@ -359,7 +359,7 @@
                         const value = stock.total_mv / 8391;
                         return value >= 1 ? value.toFixed(1) + '亿' : (value * 10000).toFixed(0) + '万';
                     })() : '-'}</td>
-                    <td>${stock.net_mf_amount ? (() => {
+                    <td class="${stock.net_mf_amount > 0 ? 'text-danger' : stock.net_mf_amount < 0 ? 'text-success' : ''}">${stock.net_mf_amount ? (() => {
                         const value = stock.net_mf_amount / 10000;
                         return value >= 1 ? value.toFixed(2) + '亿' : (value * 10000).toFixed(0) + '万';
                     })() : '-'}</td>
