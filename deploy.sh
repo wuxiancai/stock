@@ -123,7 +123,7 @@ echo
 print_info "=== 步骤3: 安装Python依赖包 ==="
 source "$VENV_DIR/bin/activate"
 print_info "升级pip..."
-if pip install --upgrade pip; then
+if pip install --upgrade pip setuptools wheel; then
     print_success "pip升级完成"
 else
     print_error "pip升级失败"
