@@ -313,6 +313,8 @@ INDEX_NAME_MAP = {
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
+# 配置JSON序列化不转义中文字符
+app.config['JSON_AS_ASCII'] = False
 
 # 全局变量用于管理同步进度
 sync_progress = {
@@ -335,6 +337,14 @@ def get_db_connection():
     # 设置文本工厂以正确处理UTF-8编码
     conn.text_factory = str
     return conn
+
+def json_response(data, status_code=200):
+    """统一的JSON响应函数，确保中文字符正确显示"""
+    return Response(
+        json.dumps(data, ensure_ascii=False, indent=2),
+        mimetype='application/json; charset=utf-8',
+        status=status_code
+    )
 
 def init_database():
     """初始化数据库"""
@@ -765,11 +775,16 @@ def get_stocks():
     
     conn.close()
     
-    return jsonify({
+    # 使用json.dumps确保中文字符不被转义
+    response_data = {
         'stocks': stocks_list,
         'trade_date': latest_date,
         'total': len(stocks_list)
-    })
+    }
+    return Response(
+        json.dumps(response_data, ensure_ascii=False, indent=2),
+        mimetype='application/json; charset=utf-8'
+    )
 
 @app.route('/api/stock/<ts_code>')
 def get_stock_history(ts_code):
@@ -1418,17 +1433,26 @@ def get_td_sequential_stocks():
     """获取九转序列筛选结果"""
     try:
         filtered_stocks = filter_td_sequential_stocks()
-        return jsonify({
+        response_data = {
             'stocks': filtered_stocks,
             'total': len(filtered_stocks),
             'message': f'找到 {len(filtered_stocks)} 只九转数值大于红2的股票'
-        })
+        }
+        return Response(
+            json.dumps(response_data, ensure_ascii=False, indent=2),
+            mimetype='application/json; charset=utf-8'
+        )
     except Exception as e:
-        return jsonify({
+        error_data = {
             'stocks': [],
             'total': 0,
             'message': f'获取数据失败: {str(e)}'
-        }), 500
+        }
+        return Response(
+            json.dumps(error_data, ensure_ascii=False, indent=2),
+            mimetype='application/json; charset=utf-8',
+            status=500
+        )
 
 
 @app.route('/td_sequential_result')

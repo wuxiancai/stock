@@ -144,8 +144,20 @@ python run.py init_db > /dev/null 2>&1
 print_success "数据库初始化完成"
 
 print_info "同步股票基础信息（这可能需要几分钟）..."
-python run.py sync_stock_basic_info
-print_success "股票基础信息同步完成"
+print_info "如果网络较慢或Tushare限流，此步骤可能需要较长时间"
+
+# 使用timeout命令防止长时间卡住
+if timeout 600 python run.py sync_stock_basic_info; then
+    print_success "股票基础信息同步完成"
+elif [ $? -eq 124 ]; then
+    print_warning "同步超时（10分钟），可能是网络问题或Tushare限流"
+    print_warning "可以稍后手动执行: cd $APP_DIR && python run.py sync_stock_basic_info"
+    print_warning "继续部署其他组件..."
+else
+    print_error "股票基础信息同步失败，请检查网络连接和Tushare配置"
+    print_warning "可以稍后手动执行: cd $APP_DIR && python run.py sync_stock_basic_info"
+    print_warning "继续部署其他组件..."
+fi
 
 print_info "运行编码测试验证..."
 if [ -f "test_encoding.py" ]; then

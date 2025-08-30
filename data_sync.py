@@ -231,23 +231,23 @@ class DataSync:
                 return pd.DataFrame()
             
             # 添加调试日志，检查API返回的数据编码
-            logger.info(f"获取到 {len(stock_basic)} 只股票的基础信息")
+            logger.info(f"获取到 {len(df)} 只股票的基础信息")
             
             # 检查前几条数据的编码情况
-            if len(stock_basic) > 0:
-                sample_data = stock_basic.head(3)
+            if len(df) > 0:
+                sample_data = df.head(3)
                 for idx, row in sample_data.iterrows():
-                    logger.debug(f"样本数据 {idx}: ts_code={row.get('ts_code')}, name={row.get('name')}, area={row.get('area')}, industry={row.get('industry')}")
+                    logger.info(f"样本数据 {idx}: ts_code={row.get('ts_code')}, name={row.get('name')}, area={row.get('area')}, industry={row.get('industry')}")
                     # 检查字符编码
                     name = row.get('name')
                     if name and isinstance(name, str):
                         try:
                             name_encoded = name.encode('utf-8')
-                            logger.debug(f"股票名称 '{name}' UTF-8编码长度: {len(name_encoded)} 字节")
+                            logger.info(f"股票名称 '{name}' UTF-8编码长度: {len(name_encoded)} 字节")
                         except UnicodeEncodeError as e:
                             logger.warning(f"股票名称编码异常: {e}")
             
-            return stock_basic
+            return df
             
         except Exception as e:
             logger.error(f"获取股票基础信息失败: {e}")
@@ -503,8 +503,15 @@ class DataSync:
             
             # 使用INSERT OR REPLACE来处理重复数据
             saved_count = 0
-            for _, row in df.iterrows():
+            total_count = len(df)
+            logger.info(f"开始保存 {total_count} 条股票基础信息到数据库")
+            
+            for idx, row in df.iterrows():
                 try:
+                    # 每处理100条记录输出一次进度
+                    if (saved_count + 1) % 100 == 0 or saved_count == 0:
+                        logger.info(f"正在保存股票基础信息: {saved_count + 1}/{total_count} ({((saved_count + 1)/total_count*100):.1f}%)")
+                    
                     # 确保中文字符正确编码
                     def safe_encode(value):
                         if value is None:

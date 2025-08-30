@@ -49,6 +49,18 @@ def sync_data():
         return False
     return True
 
+def sync_stock_basic_info():
+    """同步股票基础信息"""
+    print("开始同步股票基础信息...")
+    try:
+        data_sync = DataSync()
+        saved_count = data_sync.sync_stock_basic_info()
+        print(f"✓ 股票基础信息同步完成，共保存 {saved_count} 条记录")
+    except Exception as e:
+        print(f"✗ 股票基础信息同步失败: {e}")
+        return False
+    return True
+
 def start_web_server(host='0.0.0.0', port=5000, debug=False):
     """启动Web服务器"""
     print(f"正在启动股票选股系统...")
@@ -119,6 +131,8 @@ def main():
   python run.py                    # 启动Web服务
   python run.py --sync             # 执行数据同步
   python run.py --init             # 初始化数据库
+  python run.py init_db            # 初始化数据库（位置参数）
+  python run.py sync_stock_basic_info  # 同步股票基础信息
   python run.py --check            # 检查依赖
   python run.py --host 127.0.0.1   # 指定主机地址
   python run.py --port 8080        # 指定端口
@@ -126,6 +140,7 @@ def main():
         """
     )
     
+    parser.add_argument('command', nargs='?', help='命令: init_db, sync_stock_basic_info')
     parser.add_argument('--init', action='store_true', help='初始化数据库')
     parser.add_argument('--sync', action='store_true', help='执行数据同步')
     parser.add_argument('--check', action='store_true', help='检查依赖包')
@@ -135,6 +150,25 @@ def main():
     parser.add_argument('--info', action='store_true', help='显示系统信息')
     
     args = parser.parse_args()
+    
+    # 处理位置参数命令
+    if args.command:
+        if args.command == 'init_db':
+            show_system_info()
+            if not init_db():
+                sys.exit(1)
+            return
+        elif args.command == 'sync_stock_basic_info':
+            show_system_info()
+            if not check_dependencies():
+                sys.exit(1)
+            if not sync_stock_basic_info():
+                sys.exit(1)
+            return
+        else:
+            print(f"未知命令: {args.command}")
+            parser.print_help()
+            sys.exit(1)
     
     # 显示系统信息
     if args.info:
