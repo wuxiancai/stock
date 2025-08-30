@@ -123,13 +123,32 @@ echo
 print_info "=== 步骤3: 安装Python依赖包 ==="
 source "$VENV_DIR/bin/activate"
 print_info "升级pip..."
-pip install --upgrade pip > /dev/null 2>&1
+if pip install --upgrade pip; then
+    print_success "pip升级完成"
+else
+    print_error "pip升级失败"
+    exit 1
+fi
 
 # 检查requirements.txt是否存在
 if [ -f "$APP_DIR/requirements.txt" ]; then
     print_info "安装项目依赖包..."
-    pip install -r "$APP_DIR/requirements.txt" > /dev/null 2>&1
-    print_success "依赖包安装完成"
+    print_info "依赖包列表:"
+    cat "$APP_DIR/requirements.txt"
+    echo
+    
+    if pip install -r "$APP_DIR/requirements.txt"; then
+        print_success "依赖包安装完成"
+    else
+        print_error "依赖包安装失败，请检查网络连接和依赖包版本"
+        print_info "尝试使用国内镜像源重新安装..."
+        if pip install -r "$APP_DIR/requirements.txt" -i https://pypi.tuna.tsinghua.edu.cn/simple/; then
+            print_success "使用镜像源安装依赖包成功"
+        else
+            print_error "依赖包安装彻底失败，请手动检查"
+            exit 1
+        fi
+    fi
 else
     print_warning "requirements.txt文件不存在，请手动安装依赖包"
 fi
@@ -140,17 +159,22 @@ print_info "=== 步骤3.5: 初始化数据库和同步数据 ==="
 cd "$APP_DIR"
 
 print_info "初始化数据库..."
-python run.py init_db > /dev/null 2>&1
-print_success "数据库初始化完成"
+if python run.py init_db; then
+    print_success "数据库初始化完成"
+else
+    print_error "数据库初始化失败"
+    exit 1
+fi
 
 print_info "同步股票基础信息（这可能需要几分钟）..."
 print_info "如果网络较慢或Tushare限流，此步骤可能需要较长时间"
+print_info "正在连接Tushare API获取股票数据..."
 
-# 使用timeout命令防止长时间卡住
-if timeout 600 python run.py sync_stock_basic_info; then
+# 使用timeout命令防止长时间卡住，增加超时时间到15分钟
+if timeout 900 python run.py sync_stock_basic_info; then
     print_success "股票基础信息同步完成"
 elif [ $? -eq 124 ]; then
-    print_warning "同步超时（10分钟），可能是网络问题或Tushare限流"
+    print_warning "同步超时（15分钟），可能是网络问题或Tushare限流"
     print_warning "可以稍后手动执行: cd $APP_DIR && python run.py sync_stock_basic_info"
     print_warning "继续部署其他组件..."
 else
