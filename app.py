@@ -1039,13 +1039,20 @@ def sync_all_a_stock_data_background(start_date=None, end_date=None):
             sync_dates = [latest_date]
             update_sync_progress(f'开始同步 {latest_date} 数据', 5, f'目标日期: {latest_date}')
         
+        # 首先同步指数数据（一次性同步所有日期）
+        update_sync_progress('同步指数数据', 10, '正在同步主要指数的历史数据...')
+        index_start_date = sync_dates[0] if sync_dates else None
+        index_end_date = sync_dates[-1] if sync_dates else None
+        index_count = data_sync.sync_index_daily_data(start_date=index_start_date, end_date=index_end_date)
+        total_count += index_count
+        
         # 按日期同步数据
         total_dates = len(sync_dates)
-        # 更新总步骤数为实际的日期数量 + 初始化步骤
-        sync_progress['total_steps'] = total_dates * 7 + 5  # 每个日期7个同步步骤 + 5个初始化步骤
+        # 更新总步骤数为实际的日期数量 + 初始化步骤 + 指数同步步骤
+        sync_progress['total_steps'] = total_dates * 7 + 10  # 每个日期7个同步步骤 + 10个初始化和指数同步步骤
         
         for i, sync_date in enumerate(sync_dates):
-            base_progress = 5 + i * 7  # 基础进度 = 初始化步骤 + 已完成日期的步骤数
+            base_progress = 10 + i * 7  # 基础进度 = 初始化和指数同步步骤 + 已完成日期的步骤数
             
             # 同步日线数据
             update_sync_progress(f'同步 {sync_date} 日线数据', base_progress + 1, f'进度: {i+1}/{total_dates} 日期')
@@ -1056,7 +1063,7 @@ def sync_all_a_stock_data_background(start_date=None, end_date=None):
             count2 = 0
             
             # 同步资金流向数据
-            update_sync_progress(f'同步 {sync_date} 资金流向', base_progress + 3, f'已完成基础信息')
+            update_sync_progress(f'同步 {sync_date} 资金流向', base_progress + 3, f'已完成日线数据')
             count3 = data_sync.sync_moneyflow_by_date(sync_date)
             total_count += count3
             
@@ -1067,6 +1074,9 @@ def sync_all_a_stock_data_background(start_date=None, end_date=None):
             
             date_total = count1 + count2 + count3 + count4
             results.append(f'{sync_date}: {date_total}条')
+        
+        # 添加指数数据到结果中
+        results.insert(0, f'指数数据: {index_count}条')
         
         update_sync_progress('检查数据完整性', sync_progress['total_steps'], f'正在验证同步数据...')
         
