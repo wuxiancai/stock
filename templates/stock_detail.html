@@ -122,6 +122,14 @@
                     </div>
                     <div class="col-1 px-1">
                         <div class="text-center">
+                            <small class="text-muted d-block">行业</small>
+                            <strong class="text-warning">
+                                {{ stock_industry or "--" }}
+                            </strong>
+                        </div>
+                    </div>
+                    <div class="col-1 px-1">
+                        <div class="text-center">
                             <small class="text-muted d-block">交易日期</small>
                             <strong class="text-secondary">
                                 {{ latest_data.trade_date[4:6] }}-{{ latest_data.trade_date[6:8] }}

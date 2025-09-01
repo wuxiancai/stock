@@ -608,13 +608,14 @@ def stock_detail(ts_code):
     """股票详情页面"""
     conn = get_db_connection()
     
-    # 获取股票基础信息（从stock_basic_info表获取股票名称）
+    # 获取股票基础信息（从stock_basic_info表获取股票名称和行业）
     stock_info = conn.execute(
-        'SELECT name FROM stock_basic_info WHERE ts_code = ?',
+        'SELECT name, industry FROM stock_basic_info WHERE ts_code = ?',
         (ts_code,)
     ).fetchone()
     
     stock_name = stock_info['name'] if stock_info else None
+    stock_industry = stock_info['industry'] if stock_info else None
     
     # 获取最新数据
     latest_data = conn.execute(
@@ -707,6 +708,7 @@ def stock_detail(ts_code):
     return render_template('stock_detail.html', 
                          stock_code=ts_code,
                          stock_name=stock_name,
+                         stock_industry=stock_industry,
                          latest_data=latest_data,
                          additional_metrics=additional_metrics,
                          history=history,
