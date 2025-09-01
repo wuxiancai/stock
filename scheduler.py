@@ -97,25 +97,25 @@ class StockScheduler:
             logger.warning("定时任务已在运行中")
             return
         
-        # 设置工作日晚上19:00执行交易数据同步（周一到周五）
-        schedule.every().monday.at("19:00").do(self.daily_sync_job)
-        schedule.every().tuesday.at("19:00").do(self.daily_sync_job)
-        schedule.every().wednesday.at("19:00").do(self.daily_sync_job)
-        schedule.every().thursday.at("19:00").do(self.daily_sync_job)
-        schedule.every().friday.at("19:00").do(self.daily_sync_job)
+        # 设置工作日晚上18:00执行交易数据同步（周一到周五）
+        schedule.every().monday.at("18:00").do(self.daily_sync_job)
+        schedule.every().tuesday.at("18:00").do(self.daily_sync_job)
+        schedule.every().wednesday.at("18:00").do(self.daily_sync_job)
+        schedule.every().thursday.at("18:00").do(self.daily_sync_job)
+        schedule.every().friday.at("18:00").do(self.daily_sync_job)
         
         # 设置工作日晚上21:00执行九转序列筛选（周一到周五）
-        schedule.every().monday.at("21:00").do(self.td_sequential_filter_job)
-        schedule.every().tuesday.at("21:00").do(self.td_sequential_filter_job)
-        schedule.every().wednesday.at("21:00").do(self.td_sequential_filter_job)
-        schedule.every().thursday.at("21:00").do(self.td_sequential_filter_job)
-        schedule.every().friday.at("21:00").do(self.td_sequential_filter_job)
+        schedule.every().monday.at("19:00").do(self.td_sequential_filter_job)
+        schedule.every().tuesday.at("19:00").do(self.td_sequential_filter_job)
+        schedule.every().wednesday.at("19:00").do(self.td_sequential_filter_job)
+        schedule.every().thursday.at("19:00").do(self.td_sequential_filter_job)
+        schedule.every().friday.at("19:00").do(self.td_sequential_filter_job)
         
         self.is_running = True
         logger.info("定时任务已启动")
         logger.info("任务计划:")
-        logger.info("- 工作日 19:00: 交易数据同步（周一至周五）")
-        logger.info("- 工作日 21:00: 九转序列筛选（周一至周五）")
+        logger.info("- 工作日 18:00: 交易数据同步（周一至周五）")
+        logger.info("- 工作日 19:00: 九转序列筛选（周一至周五）")
         logger.info("- 周六周日为非交易时间，不执行任务")
         
         # 在后台线程中运行定时任务
