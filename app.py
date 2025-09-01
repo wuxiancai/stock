@@ -1598,23 +1598,11 @@ def get_favorites():
         
         # 获取自选股及其最新数据
         query = '''
-            SELECT 
-                f.ts_code,
-                f.name,
-                f.added_date,
-                d.close,
-                d.pre_close,
-                d.change,
-                d.pct_chg,
-                d.vol,
-                d.amount,
-                d.trade_date,
-                b.industry,
-                b.area,
-                db.total_mv,
-                db.pe,
-                db.pb,
-                mf.net_mf_amount
+            SELECT f.ts_code, f.name, f.added_date,
+                   d.close, d.pre_close, d.change, d.pct_chg, d.vol, d.amount, d.trade_date,
+                   b.industry, b.area,
+                   db.total_mv, db.pe, db.pb, db.turnover_rate, db.volume_ratio,
+                   mf.net_mf_amount
             FROM favorite_stocks f
             LEFT JOIN (
                 SELECT ts_code, close, pre_close, change, pct_chg, vol, amount, trade_date,
@@ -1623,7 +1611,7 @@ def get_favorites():
             ) d ON f.ts_code = d.ts_code AND d.rn = 1
             LEFT JOIN stock_basic_info b ON f.ts_code = b.ts_code
             LEFT JOIN (
-                SELECT ts_code, total_mv, pe, pb, trade_date,
+                SELECT ts_code, total_mv, pe, pb, turnover_rate, volume_ratio, trade_date,
                        ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
                 FROM daily_basic
             ) db ON f.ts_code = db.ts_code AND db.rn = 1
@@ -1684,6 +1672,8 @@ def get_favorites():
                 'total_mv': total_mv_formatted,
                 'pe': row['pe'],
                 'pb': row['pb'],
+                'turnover_rate': row['turnover_rate'],
+                'volume_ratio': row['volume_ratio'],
                 'net_mf_amount': net_mf_formatted,
                 'td_sequential': td_sequential
             })
