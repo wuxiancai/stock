@@ -157,16 +157,8 @@ def filter_td_sequential_stocks():
                mf.net_mf_amount
         FROM daily_data d
         LEFT JOIN stock_basic_info sb ON d.ts_code = sb.ts_code
-        LEFT JOIN (
-            SELECT ts_code, turnover_rate, volume_ratio, pe, pb, total_mv,
-                   ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
-            FROM daily_basic
-        ) db ON d.ts_code = db.ts_code AND db.rn = 1
-        LEFT JOIN (
-            SELECT ts_code, net_mf_amount,
-                   ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
-            FROM moneyflow_data
-        ) mf ON d.ts_code = mf.ts_code AND mf.rn = 1
+        LEFT JOIN daily_basic db ON d.ts_code = db.ts_code AND d.trade_date = db.trade_date
+        LEFT JOIN moneyflow_data mf ON d.ts_code = mf.ts_code AND d.trade_date = mf.trade_date
         WHERE d.trade_date = ?
         ORDER BY d.pct_chg DESC
     ''', (latest_date,)).fetchall()
@@ -617,22 +609,39 @@ def stock_detail(ts_code):
     stock_name = stock_info['name'] if stock_info else None
     stock_industry = stock_info['industry'] if stock_info else None
     
-    # 获取最新数据
-    latest_data = conn.execute(
-        'SELECT * FROM daily_data WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
+    # 获取最新交易日期
+    latest_date = conn.execute(
+        'SELECT MAX(trade_date) as max_date FROM daily_data WHERE ts_code = ?',
         (ts_code,)
+    ).fetchone()['max_date']
+    
+    if not latest_date:
+        conn.close()
+        return render_template('stock_detail.html', 
+                             ts_code=ts_code, 
+                             stock_name=stock_name, 
+                             stock_industry=stock_industry,
+                             latest_data=None, 
+                             additional_metrics={}, 
+                             history=[], 
+                             moneyflow=[])
+    
+    # 获取当前交易日的数据
+    latest_data = conn.execute(
+        'SELECT * FROM daily_data WHERE ts_code = ? AND trade_date = ?',
+        (ts_code, latest_date)
     ).fetchone()
     
-    # 获取最新的换手率数据（从daily_basic表）
+    # 获取当前交易日的换手率数据（从daily_basic表）
     turnover_data = conn.execute(
-        'SELECT turnover_rate FROM daily_basic WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
-        (ts_code,)
+        'SELECT turnover_rate FROM daily_basic WHERE ts_code = ? AND trade_date = ?',
+        (ts_code, latest_date)
     ).fetchone()
     
     # 获取前一交易日数据用于计算量比
     prev_data = conn.execute(
-        'SELECT vol FROM daily_data WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1 OFFSET 1',
-        (ts_code,)
+        'SELECT vol FROM daily_data WHERE ts_code = ? AND trade_date < ? ORDER BY trade_date DESC LIMIT 1',
+        (ts_code, latest_date)
     ).fetchone()
     
     # 计算额外指标
@@ -659,24 +668,24 @@ def stock_detail(ts_code):
         else:
             additional_metrics['turnover_rate'] = "--"
         
-        # 市盈率（从daily_basic表获取）
+        # 市盈率（从daily_basic表获取当前交易日数据）
         pe_data = conn.execute(
-            'SELECT pe FROM daily_basic WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
-            (ts_code,)
+            'SELECT pe FROM daily_basic WHERE ts_code = ? AND trade_date = ?',
+            (ts_code, latest_date)
         ).fetchone()
         additional_metrics['pe'] = pe_data['pe'] if pe_data and pe_data['pe'] else 0
         
-        # 市净率（从daily_basic表获取）
+        # 市净率（从daily_basic表获取当前交易日数据）
         pb_data = conn.execute(
-            'SELECT pb FROM daily_basic WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
-            (ts_code,)
+            'SELECT pb FROM daily_basic WHERE ts_code = ? AND trade_date = ?',
+            (ts_code, latest_date)
         ).fetchone()
         additional_metrics['pb'] = pb_data['pb'] if pb_data and pb_data['pb'] else 0
         
-        # 总市值（从daily_basic表获取）
+        # 总市值（从daily_basic表获取当前交易日数据）
         total_mv_data = conn.execute(
-            'SELECT total_mv FROM daily_basic WHERE ts_code = ? ORDER BY trade_date DESC LIMIT 1',
-            (ts_code,)
+            'SELECT total_mv FROM daily_basic WHERE ts_code = ? AND trade_date = ?',
+            (ts_code, latest_date)
         ).fetchone()
         if total_mv_data and total_mv_data['total_mv']:
             total_mv_wan = total_mv_data['total_mv']  # 单位已经是万元
@@ -1361,36 +1370,47 @@ def get_index_daily():
     
     conn = get_db_connection()
     
-    # 构建查询条件
-    where_conditions = []
-    params = []
+    # 如果没有指定日期范围，获取最新交易日期
+    if not start_date and not end_date:
+        latest_date = conn.execute(
+            'SELECT MAX(trade_date) as max_date FROM index_daily_data'
+        ).fetchone()['max_date']
+        
+        if not latest_date:
+            conn.close()
+            return jsonify({'index_daily': [], 'message': '暂无数据'})
+        
+        # 构建查询条件
+        where_conditions = ['trade_date = ?']
+        params = [latest_date]
+        
+        if ts_code:
+            where_conditions.append('ts_code = ?')
+            params.append(ts_code)
+    else:
+        # 构建查询条件
+        where_conditions = []
+        params = []
+        
+        if ts_code:
+            where_conditions.append('ts_code = ?')
+            params.append(ts_code)
+        
+        if start_date:
+            where_conditions.append('trade_date >= ?')
+            params.append(start_date)
+        
+        if end_date:
+            where_conditions.append('trade_date <= ?')
+            params.append(end_date)
     
-    if ts_code:
-        where_conditions.append('ts_code = ?')
-        params.append(ts_code)
+    where_clause = 'WHERE ' + ' AND '.join(where_conditions) if where_conditions else ''
     
-    if start_date:
-        where_conditions.append('trade_date >= ?')
-        params.append(start_date)
-    
-    if end_date:
-        where_conditions.append('trade_date <= ?')
-        params.append(end_date)
-    
-    where_clause = ''
-    if where_conditions:
-        where_clause = 'WHERE ' + ' AND '.join(where_conditions)
-    
-    # 查询指数日线行情数据 - 每个指数只显示最新的一条数据
+    # 查询指数日线行情数据
     query = f'''
         SELECT ts_code, trade_date, close, open, high, low, pre_close, change, pct_chg, vol, amount
-        FROM index_daily_data i1
-        WHERE i1.trade_date = (
-            SELECT MAX(i2.trade_date) 
-            FROM index_daily_data i2 
-            WHERE i2.ts_code = i1.ts_code
-        )
-        {('AND ' + ' AND '.join(where_conditions)) if where_conditions else ''}
+        FROM index_daily_data
+        {where_clause}
         ORDER BY ts_code
         LIMIT ?
     '''
@@ -1596,7 +1616,16 @@ def get_favorites():
     try:
         conn = get_db_connection()
         
-        # 获取自选股及其最新数据
+        # 获取最新交易日期
+        latest_date = conn.execute(
+            'SELECT MAX(trade_date) as max_date FROM daily_data'
+        ).fetchone()['max_date']
+        
+        if not latest_date:
+            conn.close()
+            return jsonify({'favorites': [], 'message': '暂无数据'})
+        
+        # 获取自选股及其当前交易日数据
         query = '''
             SELECT f.ts_code, f.name, f.added_date,
                    d.close, d.pre_close, d.change, d.pct_chg, d.vol, d.amount, d.trade_date,
@@ -1604,26 +1633,14 @@ def get_favorites():
                    db.total_mv, db.pe, db.pb, db.turnover_rate, db.volume_ratio,
                    mf.net_mf_amount
             FROM favorite_stocks f
-            LEFT JOIN (
-                SELECT ts_code, close, pre_close, change, pct_chg, vol, amount, trade_date,
-                       ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
-                FROM daily_data
-            ) d ON f.ts_code = d.ts_code AND d.rn = 1
+            LEFT JOIN daily_data d ON f.ts_code = d.ts_code AND d.trade_date = ?
             LEFT JOIN stock_basic_info b ON f.ts_code = b.ts_code
-            LEFT JOIN (
-                SELECT ts_code, total_mv, pe, pb, turnover_rate, volume_ratio, trade_date,
-                       ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
-                FROM daily_basic
-            ) db ON f.ts_code = db.ts_code AND db.rn = 1
-            LEFT JOIN (
-                SELECT ts_code, net_mf_amount, trade_date,
-                       ROW_NUMBER() OVER (PARTITION BY ts_code ORDER BY trade_date DESC) as rn
-                FROM moneyflow_data
-            ) mf ON f.ts_code = mf.ts_code AND mf.rn = 1
+            LEFT JOIN daily_basic db ON f.ts_code = db.ts_code AND db.trade_date = ?
+            LEFT JOIN moneyflow_data mf ON f.ts_code = mf.ts_code AND mf.trade_date = ?
             ORDER BY f.added_date DESC
         '''
         
-        cursor = conn.execute(query)
+        cursor = conn.execute(query, (latest_date, latest_date, latest_date))
         favorites = []
         
         for row in cursor.fetchall():
