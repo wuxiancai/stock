@@ -845,8 +845,8 @@ function formatVolume(vol) {
 function formatAmount(amount) {
     if (amount === null || amount === undefined) return '-';
     const value = parseFloat(amount);
-    if (value >= 1000000) {
-        return (value / 1000000).toFixed(1) + '亿';
+    if (value >= 100000) {
+        return (value / 100000).toFixed(2) + '亿';
     } else if (value >= 10000) {
         return (value / 10000).toFixed(1) + '万';
     }

@@ -356,7 +356,7 @@
                     <td>${stock.pe ? stock.pe.toFixed(2) : '-'}</td>
                     <td>${stock.pb ? stock.pb.toFixed(2) : '-'}</td>
                     <td>${stock.total_mv ? (() => {
-                        const value = stock.total_mv / 8391;
+                        const value = stock.total_mv / 10000;
                         return value >= 1 ? value.toFixed(1) + '亿' : (value * 10000).toFixed(0) + '万';
                     })() : '-'}</td>
                     <td class="${stock.net_mf_amount > 0 ? 'text-danger' : stock.net_mf_amount < 0 ? 'text-success' : ''}">${stock.net_mf_amount ? (() => {
