@@ -291,9 +291,9 @@
                 let tdSequentialDisplay = '-';
                 if (stock.td_sequential !== null && stock.td_sequential !== undefined) {
                     if (stock.td_sequential > 0) {
-                        tdSequentialDisplay = `<span class="text-danger fw-bold">红${stock.td_sequential}</span>`;
+                        tdSequentialDisplay = `<span class="text-danger fw-bold">${stock.td_sequential}</span>`;
                     } else if (stock.td_sequential < 0) {
-                        tdSequentialDisplay = `<span class="text-success fw-bold">绿${Math.abs(stock.td_sequential)}</span>`;
+                        tdSequentialDisplay = `<span class="text-success fw-bold">${Math.abs(stock.td_sequential)}</span>`;
                     }
                 }
                 
@@ -313,11 +313,11 @@
                     <td>${stock.turnover_rate ? stock.turnover_rate.toFixed(2) + '%' : '-'}</td>
                     <td>${stock.pe ? stock.pe.toFixed(2) : '-'}</td>
                     <td>${stock.pb ? stock.pb.toFixed(2) : '-'}</td>
-                    <td>${stock.added_date}</td>
+                    <td>${stock.added_date ? new Date(stock.added_date).toLocaleDateString('zh-CN', {month: '2-digit', day: '2-digit'}) : '-'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-danger" 
                                 onclick="showDeleteConfirm('${stock.ts_code}', '${stock.name}')">
-                            <i class="fas fa-trash"></i> 移除
+                            <i class="fas fa-trash"></i>
                         </button>
                     </td>
                 `;

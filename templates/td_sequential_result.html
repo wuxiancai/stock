@@ -56,7 +56,7 @@
             white-space: nowrap;
         }
         .filter-item input {
-            width: 80px;
+            width: 60px;
             font-size: 11px;
         }
         .filter-item select {
@@ -120,27 +120,27 @@
                             <div class="filter-row">
                                 <div class="filter-item">
                                     <label>量比:</label>
-                                    <input type="number" id="volumeRatioMin" class="form-control" placeholder="最小值" step="0.1">
+                                    <input type="number" id="volumeRatioMin" class="form-control" placeholder="最小" step="0.1">
                                     <span>-</span>
-                                    <input type="number" id="volumeRatioMax" class="form-control" placeholder="最大值" step="0.1">
+                                    <input type="number" id="volumeRatioMax" class="form-control" placeholder="最大" step="0.1">
                                 </div>
                                 <div class="filter-item">
                                     <label>换手率(%):</label>
-                                    <input type="number" id="turnoverRateMin" class="form-control" placeholder="最小值" step="0.1">
+                                    <input type="number" id="turnoverRateMin" class="form-control" placeholder="最小" step="0.1">
                                     <span>-</span>
-                                    <input type="number" id="turnoverRateMax" class="form-control" placeholder="最大值" step="0.1">
+                                    <input type="number" id="turnoverRateMax" class="form-control" placeholder="最大" step="0.1">
                                 </div>
                                 <div class="filter-item">
                                     <label>净流入额(万):</label>
-                                    <input type="number" id="netMfAmountMin" class="form-control" placeholder="最小值">
+                                    <input type="number" id="netMfAmountMin" class="form-control" placeholder="最小">
                                     <span>-</span>
-                                    <input type="number" id="netMfAmountMax" class="form-control" placeholder="最大值">
+                                    <input type="number" id="netMfAmountMax" class="form-control" placeholder="最大">
                                 </div>
                                 <div class="filter-item">
                                     <label>九转序列:</label>
-                                    <input type="number" id="tdSequentialMin" class="form-control" placeholder="最小值" step="1">
+                                    <input type="number" id="tdSequentialMin" class="form-control" placeholder="最小" step="1">
                                     <span>-</span>
-                                    <input type="number" id="tdSequentialMax" class="form-control" placeholder="最大值" step="1">
+                                    <input type="number" id="tdSequentialMax" class="form-control" placeholder="最大" step="1">
                                 </div>
                                 <div class="filter-item">
                                     <label>股票代码:</label>
@@ -370,8 +370,8 @@
                     })()}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-success" onclick="event.stopPropagation(); addToFavorites('${stock.ts_code}', '${stock.name}')" title="加入自选股">
-                            <i class="fas fa-star"></i> 加入自选股
-                        </button>
+                                <i class="fas fa-star"></i>
+                            </button>
                     </td>
                 `;
 
