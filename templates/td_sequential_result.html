@@ -14,6 +14,9 @@
         .table {
             font-size: 11px;
         }
+        .table td, .table th {
+            text-align: center;
+        }
         .table th {
             font-size: 11px;
             font-weight: 600;
@@ -105,7 +108,7 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
                             <i class="fas fa-filter me-2"></i>
-                            九转序列筛选结果（红2以上）
+                            九转序列筛选结果（2以上）
                         </h5>
                         <div>
                             <button class="btn btn-primary btn-sm" onclick="refreshData()">
@@ -120,27 +123,27 @@
                             <div class="filter-row">
                                 <div class="filter-item">
                                     <label>量比:</label>
-                                    <input type="number" id="volumeRatioMin" class="form-control" placeholder="最小" step="0.1">
+                                    <input type="number" id="volumeRatioMin" class="form-control" placeholder="小" step="0.1">
                                     <span>-</span>
-                                    <input type="number" id="volumeRatioMax" class="form-control" placeholder="最大" step="0.1">
+                                    <input type="number" id="volumeRatioMax" class="form-control" placeholder="大" step="0.1">
                                 </div>
                                 <div class="filter-item">
                                     <label>换手率(%):</label>
-                                    <input type="number" id="turnoverRateMin" class="form-control" placeholder="最小" step="0.1">
+                                    <input type="number" id="turnoverRateMin" class="form-control" placeholder="小" step="0.1">
                                     <span>-</span>
-                                    <input type="number" id="turnoverRateMax" class="form-control" placeholder="最大" step="0.1">
+                                    <input type="number" id="turnoverRateMax" class="form-control" placeholder="大" step="0.1">
                                 </div>
                                 <div class="filter-item">
                                     <label>净流入额(万):</label>
-                                    <input type="number" id="netMfAmountMin" class="form-control" placeholder="最小">
+                                    <input type="number" id="netMfAmountMin" class="form-control" placeholder="小">
                                     <span>-</span>
-                                    <input type="number" id="netMfAmountMax" class="form-control" placeholder="最大">
+                                    <input type="number" id="netMfAmountMax" class="form-control" placeholder="大">
                                 </div>
                                 <div class="filter-item">
                                     <label>九转序列:</label>
-                                    <input type="number" id="tdSequentialMin" class="form-control" placeholder="最小" step="1">
+                                    <input type="number" id="tdSequentialMin" class="form-control" placeholder="小" step="1">
                                     <span>-</span>
-                                    <input type="number" id="tdSequentialMax" class="form-control" placeholder="最大" step="1">
+                                    <input type="number" id="tdSequentialMax" class="form-control" placeholder="大" step="1">
                                 </div>
                                 <div class="filter-item">
                                     <label>股票代码:</label>
@@ -244,7 +247,7 @@
                         <div id="noDataMessage" class="text-center py-4" style="display: none;">
                             <i class="fas fa-info-circle fa-3x text-muted mb-3"></i>
                             <h5 class="text-muted">暂无符合条件的股票</h5>
-                            <p class="text-muted">当前没有找到九转数值大于红2的股票</p>
+                            <p class="text-muted">当前没有找到九转数值大于2的股票</p>
                         </div>
                         
                         <div id="errorMessage" class="alert alert-danger" style="display: none;">
@@ -327,9 +330,9 @@
                 // 格式化九转序列显示
                 let tdSequentialDisplay = '';
                 if (stock.td_sequential > 0) {
-                    tdSequentialDisplay = `<span class="td-positive">红${stock.td_sequential}</span>`;
+                    tdSequentialDisplay = `<span class="td-positive">${stock.td_sequential}</span>`;
                 } else if (stock.td_sequential < 0) {
-                    tdSequentialDisplay = `<span class="td-negative">绿${Math.abs(stock.td_sequential)}</span>`;
+                    tdSequentialDisplay = `<span class="td-negative">${Math.abs(stock.td_sequential)}</span>`;
                 } else {
                     tdSequentialDisplay = '-';
                 }
