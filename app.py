@@ -191,6 +191,53 @@ def filter_td_sequential_stocks():
     
     return filtered_stocks
 
+
+def filter_limit_up_stocks():
+    """筛选涨停且成交额大于10亿的股票"""
+    conn = get_db_connection()
+    
+    # 获取最新交易日期
+    latest_date = conn.execute(
+        'SELECT MAX(trade_date) as max_date FROM daily_data'
+    ).fetchone()['max_date']
+    
+    if not latest_date:
+        conn.close()
+        return []
+    
+    # 获取最新交易日的所有股票数据，包含新增字段
+    stocks = conn.execute('''
+        SELECT d.ts_code, d.trade_date, d.open, d.high, d.low, d.close, d.pre_close, 
+               d.change, d.pct_chg, d.vol, d.amount, 
+               sb.name, sb.industry, sb.area,
+               db.turnover_rate, db.volume_ratio, db.pe, db.pb, db.total_mv,
+               mf.net_mf_amount
+        FROM daily_data d
+        LEFT JOIN stock_basic_info sb ON d.ts_code = sb.ts_code
+        LEFT JOIN daily_basic db ON d.ts_code = db.ts_code AND d.trade_date = db.trade_date
+        LEFT JOIN moneyflow_data mf ON d.ts_code = mf.ts_code AND d.trade_date = mf.trade_date
+        WHERE d.trade_date = ?
+        ORDER BY d.amount DESC
+    ''', (latest_date,)).fetchall()
+    
+    # 筛选涨停且成交额大于10亿的股票
+    filtered_stocks = []
+    for stock in stocks:
+        # 筛选条件：
+        # 1. 涨跌幅接近10%（考虑到浮点数精度，使用9.9%作为阈值）
+        # 2. 成交额大于10亿（1000000000）
+        if (stock['pct_chg'] is not None and stock['pct_chg'] >= 9.9 and 
+            stock['amount'] is not None and stock['amount'] >= 1000000000):
+            stock_dict = dict(stock)
+            filtered_stocks.append(stock_dict)
+    
+    conn.close()
+    
+    # 按成交额降序排序
+    filtered_stocks.sort(key=lambda x: x['amount'] if x['amount'] else 0, reverse=True)
+    
+    return filtered_stocks
+
 # 指数名称映射字典
 INDEX_NAME_MAP = {
     '000001.SH': '上证指数',
@@ -1491,6 +1538,39 @@ def get_td_sequential_stocks():
 def td_sequential_result_page():
     """九转序列筛选结果页面"""
     return render_template('td_sequential_result.html')
+
+
+@app.route('/api/limit_up_stocks')
+def get_limit_up_stocks():
+    """获取打板筛选结果"""
+    try:
+        filtered_stocks = filter_limit_up_stocks()
+        response_data = {
+            'stocks': filtered_stocks,
+            'total': len(filtered_stocks),
+            'message': f'找到 {len(filtered_stocks)} 只涨停且成交额大于10亿的股票'
+        }
+        return Response(
+            json.dumps(response_data, ensure_ascii=False, indent=2),
+            mimetype='application/json; charset=utf-8'
+        )
+    except Exception as e:
+        error_data = {
+            'stocks': [],
+            'total': 0,
+            'message': f'获取数据失败: {str(e)}'
+        }
+        return Response(
+            json.dumps(error_data, ensure_ascii=False, indent=2),
+            mimetype='application/json; charset=utf-8',
+            status=500
+        )
+
+
+@app.route('/limit_up')
+def limit_up_page():
+    """打板筛选结果页面"""
+    return render_template('limit_up.html')
 
 
 @app.route('/api/status')

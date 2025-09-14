@@ -91,6 +91,28 @@ class StockScheduler:
         except Exception as e:
             logger.error(f"九转序列筛选任务失败: {e}")
     
+    def limit_up_filter_job(self):
+        """打板股票筛选任务"""
+        try:
+            logger.info("开始执行打板股票筛选任务")
+            start_time = datetime.now()
+            
+            # 导入filter_limit_up_stocks函数
+            from app import filter_limit_up_stocks
+            
+            # 执行打板股票筛选
+            filtered_stocks = filter_limit_up_stocks()
+            
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
+            
+            logger.info(f"打板股票筛选完成，找到 {len(filtered_stocks)} 只涨停且成交额大于10亿的股票，耗时 {duration:.2f} 秒")
+            
+            # 可以在这里添加更多处理逻辑，比如发送通知等
+            
+        except Exception as e:
+            logger.error(f"打板股票筛选任务失败: {e}")
+    
     def start_scheduler(self):
         """启动定时任务"""
         if self.is_running:
@@ -111,9 +133,17 @@ class StockScheduler:
         schedule.every().thursday.at("19:00").do(self.td_sequential_filter_job)
         schedule.every().friday.at("19:00").do(self.td_sequential_filter_job)
         
+        # 设置工作日下午17:00执行打板股票筛选（周一到周五）
+        schedule.every().monday.at("17:00").do(self.limit_up_filter_job)
+        schedule.every().tuesday.at("17:00").do(self.limit_up_filter_job)
+        schedule.every().wednesday.at("17:00").do(self.limit_up_filter_job)
+        schedule.every().thursday.at("17:00").do(self.limit_up_filter_job)
+        schedule.every().friday.at("17:00").do(self.limit_up_filter_job)
+        
         self.is_running = True
         logger.info("定时任务已启动")
         logger.info("任务计划:")
+        logger.info("- 工作日 17:00: 打板股票筛选（周一至周五）")
         logger.info("- 工作日 18:00: 交易数据同步（周一至周五）")
         logger.info("- 工作日 19:00: 九转序列筛选（周一至周五）")
         logger.info("- 周六周日为非交易时间，不执行任务")
