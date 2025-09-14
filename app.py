@@ -1107,10 +1107,10 @@ def sync_all_a_stock_data_background(start_date=None, end_date=None):
         # 按日期同步数据
         total_dates = len(sync_dates)
         # 更新总步骤数为实际的日期数量 + 初始化步骤 + 指数同步步骤
-        sync_progress['total_steps'] = total_dates * 7 + 10  # 每个日期7个同步步骤 + 10个初始化和指数同步步骤
+        sync_progress['total_steps'] = total_dates * 8 + 10  # 每个日期8个同步步骤（包含打板筛选） + 10个初始化和指数同步步骤
         
         for i, sync_date in enumerate(sync_dates):
-            base_progress = 10 + i * 7  # 基础进度 = 初始化和指数同步步骤 + 已完成日期的步骤数
+            base_progress = 10 + i * 8  # 基础进度 = 初始化和指数同步步骤 + 已完成日期的步骤数
             
             # 同步日线数据
             update_sync_progress(f'同步 {sync_date} 日线数据', base_progress + 1, f'进度: {i+1}/{total_dates} 日期')
@@ -1130,8 +1130,18 @@ def sync_all_a_stock_data_background(start_date=None, end_date=None):
             count4 = data_sync.sync_daily_basic_by_date(sync_date)
             total_count += count4
             
+            # 执行打板筛选
+            update_sync_progress(f'执行 {sync_date} 打板筛选', base_progress + 5, f'正在筛选涨停且成交额大于10亿的股票')
+            try:
+                filtered_stocks = filter_limit_up_stocks()
+                count5 = len(filtered_stocks)
+                update_sync_progress(f'打板筛选完成', base_progress + 6, f'找到 {count5} 只打板股票')
+            except Exception as e:
+                count5 = 0
+                update_sync_progress(f'打板筛选失败', base_progress + 6, f'打板筛选出错: {str(e)}')
+            
             date_total = count1 + count2 + count3 + count4
-            results.append(f'{sync_date}: {date_total}条')
+            results.append(f'{sync_date}: {date_total}条 (打板: {count5}只)')
         
         # 添加指数数据到结果中
         results.insert(0, f'指数数据: {index_count}条')
