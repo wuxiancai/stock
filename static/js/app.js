@@ -507,10 +507,9 @@ function showDateRangeModal() {
     // 添加模态框到页面
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
-    // 设置默认日期（最近30天）
+    // 设置默认日期（开始日期为当前日期）
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(endDate.getDate() - 30);
     
     document.getElementById('startDate').value = startDate.toISOString().split('T')[0];
     document.getElementById('endDate').value = endDate.toISOString().split('T')[0];
