@@ -230,10 +230,21 @@ def filter_limit_up_stocks(amount_threshold=10):
     # 筛选涨停且成交额大于指定门槛的股票
     filtered_stocks = []
     for stock in stocks:
+        # 根据股票代码前缀确定涨停幅度
+        ts_code = stock['ts_code']
+        if ts_code.startswith('00') or ts_code.startswith('60'):  # 主板股票
+            limit_up_threshold = 9.9  # 10%涨停
+        elif ts_code.startswith('30'):  # 创业板
+            limit_up_threshold = 19.9  # 20%涨停
+        elif ts_code.startswith('688'):  # 科创板
+            limit_up_threshold = 19.9  # 20%涨停
+        else:  # 其他股票（如北交所等）
+            limit_up_threshold = 29.9  # 30%涨停
+        
         # 筛选条件：
-        # 1. 涨跌幅接近10%（考虑到浮点数精度，使用9.9%作为阈值）
+        # 1. 涨跌幅达到对应板块的涨停幅度
         # 2. 成交额大于指定门槛（如果门槛为0则不限制成交额）
-        if (stock['pct_chg'] is not None and stock['pct_chg'] >= 9.9):
+        if (stock['pct_chg'] is not None and stock['pct_chg'] >= limit_up_threshold):
             # 如果设置了成交额门槛（大于0），则需要检查成交额
             if amount_threshold > 0:
                 if stock['amount'] is not None and stock['amount'] >= amount_threshold_value:
