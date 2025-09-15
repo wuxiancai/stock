@@ -222,6 +222,10 @@
                                             涨跌幅
                                             <i class="fas fa-sort sort-icon" id="sort-pct_chg"></i>
                                         </th>
+                                        <th class="sortable-header" onclick="sortTable('td_sequential')">
+                                            九转
+                                            <i class="fas fa-sort sort-icon" id="sort-td_sequential"></i>
+                                        </th>
                                         <th class="hidden-column sortable-header" onclick="sortTable('change')">
                                             涨跌额
                                             <i class="fas fa-sort sort-icon" id="sort-change"></i>
@@ -364,6 +368,16 @@
                 row.className = 'stock-row';
                 row.onclick = () => viewStockDetail(stock.ts_code);
 
+                // 格式化九转序列显示
+                let tdSequentialDisplay = '';
+                if (stock.td_sequential > 0) {
+                    tdSequentialDisplay = `<span class="td-positive">${stock.td_sequential}</span>`;
+                } else if (stock.td_sequential < 0) {
+                    tdSequentialDisplay = `<span class="td-negative">${Math.abs(stock.td_sequential)}</span>`;
+                } else {
+                    tdSequentialDisplay = '-';
+                }
+
                 // 格式化涨跌幅颜色
                 let pctChgClass = '';
                 if (stock.pct_chg > 0) {
@@ -379,6 +393,7 @@
                     <td>${stock.area || '-'}</td>
                     <td>¥${stock.close.toFixed(2)}</td>
                     <td class="${pctChgClass}">${stock.pct_chg > 0 ? '+' : ''}${stock.pct_chg.toFixed(2)}%</td>
+                    <td>${tdSequentialDisplay}</td>
                     <td class="hidden-column ${pctChgClass}">${stock.change > 0 ? '+' : ''}${stock.change.toFixed(2)}</td>
                     <td>${stock.turnover_rate ? stock.turnover_rate.toFixed(2) + '%' : '-'}</td>
                     <td>${stock.volume_ratio ? stock.volume_ratio.toFixed(2) : '-'}</td>

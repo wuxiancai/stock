@@ -238,10 +238,42 @@ def filter_limit_up_stocks(amount_threshold=10):
             if amount_threshold > 0:
                 if stock['amount'] is not None and stock['amount'] >= amount_threshold_value:
                     stock_dict = dict(stock)
+                    
+                    # 计算九转数值
+                    closes_data = conn.execute('''
+                        SELECT close FROM daily_data 
+                        WHERE ts_code = ? 
+                        ORDER BY trade_date DESC 
+                        LIMIT 90
+                    ''', (stock['ts_code'],)).fetchall()
+                    
+                    if len(closes_data) >= 5:
+                        closes = [row['close'] for row in reversed(closes_data)]
+                        td_sequential = calculate_td_sequential(closes)
+                        stock_dict['td_sequential'] = td_sequential
+                    else:
+                        stock_dict['td_sequential'] = None
+                    
                     filtered_stocks.append(stock_dict)
             else:
                 # 门槛为0时不限制成交额，只要是涨停股票就加入
                 stock_dict = dict(stock)
+                
+                # 计算九转数值
+                closes_data = conn.execute('''
+                    SELECT close FROM daily_data 
+                    WHERE ts_code = ? 
+                    ORDER BY trade_date DESC 
+                    LIMIT 90
+                ''', (stock['ts_code'],)).fetchall()
+                
+                if len(closes_data) >= 5:
+                    closes = [row['close'] for row in reversed(closes_data)]
+                    td_sequential = calculate_td_sequential(closes)
+                    stock_dict['td_sequential'] = td_sequential
+                else:
+                    stock_dict['td_sequential'] = None
+                
                 filtered_stocks.append(stock_dict)
     
     conn.close()
