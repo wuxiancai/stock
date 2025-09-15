@@ -108,7 +108,7 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
                             <i class="fas fa-chart-line me-2"></i>
-                            打板筛选结果（涨停且成交额>10亿）
+                            <span id="pageTitle">打板筛选结果（涨停且成交额>10亿）</span>
                         </h5>
                         <div>
                             <button class="btn btn-primary btn-sm" onclick="refreshData()">
@@ -120,6 +120,33 @@
                     <div class="card-body">
                         <!-- 筛选条件区域 -->
                         <div class="filter-section">
+                            <!-- 成交额门槛快速选择 -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">💰 成交额门槛快速选择:</label>
+                                <div class="btn-group" role="group">
+                                    <input type="radio" class="btn-check" name="amountThreshold" id="threshold30" value="30">
+                                    <label class="btn btn-outline-primary" for="threshold30">≥30亿</label>
+                                    
+                                    <input type="radio" class="btn-check" name="amountThreshold" id="threshold20" value="20">
+                                    <label class="btn btn-outline-primary" for="threshold20">≥20亿</label>
+                                    
+                                    <input type="radio" class="btn-check" name="amountThreshold" id="threshold10" value="10" checked>
+                                    <label class="btn btn-outline-primary" for="threshold10">≥10亿</label>
+                                    
+                                    <input type="radio" class="btn-check" name="amountThreshold" id="threshold5" value="5">
+                                    <label class="btn btn-outline-primary" for="threshold5">≥5亿</label>
+                                    
+                                    <input type="radio" class="btn-check" name="amountThreshold" id="threshold1" value="1">
+                                    <label class="btn btn-outline-primary" for="threshold1">≥1亿</label>
+                                    
+                                    <input type="radio" class="btn-check" name="amountThreshold" id="threshold0" value="0">
+                                    <label class="btn btn-outline-primary" for="threshold0">不限制</label>
+                                </div>
+                                <button class="btn btn-success btn-sm ms-3" onclick="applyAmountThreshold()">
+                                    <i class="fas fa-search"></i> 应用门槛
+                                </button>
+                            </div>
+                            
                             <div class="filter-row">
                                 <div class="filter-item">
                                     <label>量比:</label>
@@ -283,18 +310,24 @@
         });
 
         function loadLimitUpData() {
-            // 显示加载指示器
             document.getElementById('loadingIndicator').style.display = 'block';
             document.getElementById('stockTable').style.display = 'none';
             document.getElementById('noDataMessage').style.display = 'none';
             document.getElementById('errorMessage').style.display = 'none';
 
-            fetch('/api/limit_up_stocks')
+            // 获取当前选择的成交额门槛
+            const selectedThreshold = document.querySelector('input[name="amountThreshold"]:checked')?.value || '10';
+            
+            fetch(`/api/limit_up_stocks?amount_threshold=${selectedThreshold}`)
                 .then(response => response.json())
                 .then(data => {
                     // 隐藏加载指示器
                     document.getElementById('loadingIndicator').style.display = 'none';
 
+                    // 更新页面标题
+                    const thresholdText = data.amount_threshold > 0 ? `${data.amount_threshold}亿` : '不限制';
+                    document.getElementById('pageTitle').textContent = `打板筛选结果（涨停且成交额>${thresholdText}）`;
+                    
                     if (data.stocks && data.stocks.length > 0) {
                         originalStockData = data.stocks; // 保存原始数据
                         displayStockData(data.stocks);
@@ -302,6 +335,14 @@
                     } else {
                         document.getElementById('noDataMessage').style.display = 'block';
                         document.getElementById('totalCount').textContent = '0 只股票';
+                        
+                        // 注意：统计信息已在响应数据中，但此页面不显示这些元素
+                        
+                        // 更新无数据提示中的门槛信息
+                        const noDataText = document.querySelector('#noDataMessage p');
+                        if (noDataText) {
+                            noDataText.textContent = `当前没有找到涨停且成交额大于${thresholdText}的股票`;
+                        }
                     }
                 })
                 .catch(error => {
@@ -569,6 +610,23 @@
             
             // 重新渲染表格
             displayStockData(sortedData);
+        }
+        
+        // 应用成交额门槛
+        function applyAmountThreshold() {
+            const selectedThreshold = document.querySelector('input[name="amountThreshold"]:checked').value;
+            
+            // 清除现有的成交额筛选条件
+            document.getElementById('amountMin').value = '';
+            document.getElementById('amountMax').value = '';
+            
+            // 根据选择的门槛设置最小成交额
+            if (selectedThreshold !== '0') {
+                document.getElementById('amountMin').value = selectedThreshold;
+            }
+            
+            // 重新加载数据
+            loadLimitUpData();
         }
         
         // 更新排序图标

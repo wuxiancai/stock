@@ -192,8 +192,12 @@ def filter_td_sequential_stocks():
     return filtered_stocks
 
 
-def filter_limit_up_stocks():
-    """筛选涨停且成交额大于10亿的股票"""
+def filter_limit_up_stocks(amount_threshold=10):
+    """筛选涨停且成交额大于指定门槛的股票
+    
+    Args:
+        amount_threshold (float): 成交额门槛，单位：亿元，默认10亿
+    """
     conn = get_db_connection()
     
     # 获取最新交易日期
@@ -220,16 +224,25 @@ def filter_limit_up_stocks():
         ORDER BY d.amount DESC
     ''', (latest_date,)).fetchall()
     
-    # 筛选涨停且成交额大于10亿的股票
+    # 计算成交额门槛（转换为数据库中的单位：千元）
+    amount_threshold_value = amount_threshold * 100000  # 亿元转换为千元（1亿元 = 100000千元）
+    
+    # 筛选涨停且成交额大于指定门槛的股票
     filtered_stocks = []
     for stock in stocks:
         # 筛选条件：
         # 1. 涨跌幅接近10%（考虑到浮点数精度，使用9.9%作为阈值）
-        # 2. 成交额大于10亿（1000000000）
-        if (stock['pct_chg'] is not None and stock['pct_chg'] >= 9.9 and 
-            stock['amount'] is not None and stock['amount'] >= 1000000000):
-            stock_dict = dict(stock)
-            filtered_stocks.append(stock_dict)
+        # 2. 成交额大于指定门槛（如果门槛为0则不限制成交额）
+        if (stock['pct_chg'] is not None and stock['pct_chg'] >= 9.9):
+            # 如果设置了成交额门槛（大于0），则需要检查成交额
+            if amount_threshold > 0:
+                if stock['amount'] is not None and stock['amount'] >= amount_threshold_value:
+                    stock_dict = dict(stock)
+                    filtered_stocks.append(stock_dict)
+            else:
+                # 门槛为0时不限制成交额，只要是涨停股票就加入
+                stock_dict = dict(stock)
+                filtered_stocks.append(stock_dict)
     
     conn.close()
     
@@ -1554,11 +1567,37 @@ def td_sequential_result_page():
 def get_limit_up_stocks():
     """获取打板筛选结果"""
     try:
-        filtered_stocks = filter_limit_up_stocks()
+        # 获取成交额门槛参数，默认10亿
+        amount_threshold = float(request.args.get('amount_threshold', 10))
+        
+        filtered_stocks = filter_limit_up_stocks(amount_threshold)
+        
+        # 获取统计信息
+        conn = get_db_connection()
+        latest_date = conn.execute(
+            'SELECT MAX(trade_date) as max_date FROM daily_data'
+        ).fetchone()['max_date']
+        
+        # 获取最新交易日的总涨停股票数
+        total_limit_up = 0
+        if latest_date:
+            total_limit_up = conn.execute(
+                'SELECT COUNT(*) as count FROM daily_data WHERE trade_date = ? AND pct_chg >= 9.9',
+                (latest_date,)
+            ).fetchone()['count']
+        
+        conn.close()
+        
+        # 根据门槛生成相应的消息
+        threshold_text = f"{amount_threshold}亿" if amount_threshold > 0 else "不限制"
+        
         response_data = {
             'stocks': filtered_stocks,
             'total': len(filtered_stocks),
-            'message': f'找到 {len(filtered_stocks)} 只涨停且成交额大于10亿的股票'
+            'latest_date': latest_date,
+            'total_limit_up': total_limit_up,
+            'amount_threshold': amount_threshold,
+            'message': f'找到 {len(filtered_stocks)} 只涨停且成交额大于{threshold_text}的股票'
         }
         return Response(
             json.dumps(response_data, ensure_ascii=False, indent=2),
@@ -1568,6 +1607,9 @@ def get_limit_up_stocks():
         error_data = {
             'stocks': [],
             'total': 0,
+            'latest_date': None,
+            'total_limit_up': 0,
+            'amount_threshold': 10,
             'message': f'获取数据失败: {str(e)}'
         }
         return Response(
